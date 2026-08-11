@@ -48,11 +48,14 @@
 
 ### users/{uid}
 ```
-{ hospitalId, phone, name, dept, position,
+{ hospitalId, phone, pin, name, dept, position,
   role:'super_admin'|'admin'|'inventory_manager'|'employee',
-  status:'active'|'inactive', hireDate, annualLeaveTotal, createdAt }
+  active:true|false, hireDate, annualLeaveTotal, createdAt }
 ```
-- 로그인: 관리자가 전화번호 선등록 → 직원 SMS OTP. 퇴사자는 `inactive`(삭제 금지).
+- 로그인(무료 방식): 관리자가 직원 `phone`·`pin`·`role`을 선등록 → 직원은 **본인 전화번호 + 개인 PIN**으로 로그인(일치 시 해당 `users`로 로그인, 역할 부여). **SMS 발송 없음 → 완전 무료.** 퇴사자는 `active:false`(삭제 금지, 로그인 차단).
+  - 데이터 접근 자격은 Firebase **Anonymous Auth**(무료)로 확보(`request.auth != null`), "누구인지/역할"은 **phone+PIN**으로 결정(클라이언트 소프트 인증 — 병원 내부 신뢰 전제).
+  - phone은 정규화 저장(숫자만, 예: `01012345678`) — 중복 방지·조회 일관성. `pin`은 개인 비밀번호(4~8자리).
+  - 더 강한 본인인증(통신사 SMS OTP)은 **유료**라 파일럿에서 제외, 필요 시 후속 옵션.
 
 ### inventoryItems/{itemId}  (현재값 = 캐시)
 ```
@@ -168,7 +171,7 @@ Auth(SMS OTP) 도입 전까지 `firestore.rules`는 **deny-all**을 유지한다
 
 ## 5. 다음 구현 단계 제안 (DEV_PROMPTS 순서)
 1. (본 문서) 데이터 모델 확정 ← 현재
-2. Firebase Auth(SMS OTP) + `users` 부트스트랩 + 커스텀 클레임(hospitalId/role)
+2. 무료 로그인(전화번호+개인 PIN) + Anonymous Auth + `users` 부트스트랩(최초 관리자)
 3. `firestore.rules` 교체(병원 격리 + 역할 + append-only)
 4. 재고 기본(품목/트랜잭션/캐시 정합) → 직원 -1/-5 사용등록 배선
 5. LOT/유통기한 → 거래처/발주 → 패키지/서비스/교환/재계약 → 알림 → 리포트 → 감사로그
