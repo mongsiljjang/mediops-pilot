@@ -1,0 +1,1505 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="theme-color" content="#10213b" />
+<title>병원 관리 · 재고 / 출퇴근 / 연월차</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon-180.png" />
+<link rel="icon" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="병원관리" />
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#ffffff; --ink:#17202a; --sub:#68727d;
+    --line:#e6eaf0; --brand:#175cd3; --brand-2:#2f7ae5; --brand-soft:#e8f0ff;
+    --ok:#138a5b; --ok-soft:#e5f5ee; --warn:#c77800; --warn-soft:#fdf1db;
+    --danger:#c03434; --danger-soft:#fbe9e9; --pend:#6b46c1; --pend-soft:#efeafc;
+    --hdr1:#10213b; --hdr2:#1d4f99;
+    --shadow:0 6px 20px rgba(16,60,74,.08);
+    --radius:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",Roboto,sans-serif;
+    background:var(--bg); color:var(--ink);
+    -webkit-font-smoothing:antialiased; line-height:1.45;
+    padding-bottom:calc(72px + env(safe-area-inset-bottom));
+  }
+  .wrap{max-width:640px; margin:0 auto; padding:0 14px}
+
+  /* Header */
+  header.app{
+    position:sticky; top:0; z-index:20;
+    background:linear-gradient(135deg,var(--hdr1),var(--hdr2));
+    color:#fff; padding:14px 0 12px;
+    box-shadow:0 2px 12px rgba(8,60,74,.18);
+  }
+  header.app .wrap{display:flex; align-items:center; gap:8px}
+  header.app .wrap > div{min-width:0}
+  .logo{font-size:22px; flex:none}
+  header.app h1{font-size:17px; margin:0; font-weight:800; letter-spacing:-.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  header.app .sub{font-size:11.5px; opacity:.9; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .hbtn{margin-left:auto; background:rgba(255,255,255,.18); border:0; color:#fff;
+    font-size:12px; font-weight:700; padding:8px 12px; border-radius:999px; cursor:pointer}
+
+  main{padding-top:14px}
+  .page{display:none; animation:fade .18s ease}
+  .page.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  h2.sec{font-size:14px; color:var(--sub); font-weight:800; margin:18px 2px 8px;
+    letter-spacing:.2px; text-transform:none}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:14px; margin-bottom:12px}
+
+  /* Buttons */
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    border:0; border-radius:12px; font-weight:800; font-size:14px; padding:12px 14px;
+    cursor:pointer; background:var(--brand); color:#fff; transition:transform .05s}
+  .btn:active{transform:scale(.97)}
+  .btn.block{width:100%}
+  .btn.ghost{background:var(--brand-soft); color:var(--brand)}
+  .btn.soft{background:#eef4f6; color:var(--ink)}
+  .btn.ok{background:var(--ok)}
+  .btn.warn{background:var(--warn)}
+  .btn.danger{background:var(--danger)}
+  .btn.sm{padding:8px 11px; font-size:13px; border-radius:10px}
+  .btn.xs{padding:6px 9px; font-size:12px; border-radius:9px; font-weight:700}
+
+  .row{display:flex; gap:8px; align-items:center}
+  .row.wrap{flex-wrap:wrap}
+  .spread{display:flex; justify-content:space-between; align-items:center; gap:8px}
+  .grow{flex:1}
+  .muted{color:var(--sub)}
+  .tiny{font-size:12px}
+  .big{font-size:26px; font-weight:900; letter-spacing:-1px}
+
+  /* Inputs */
+  label.field{display:block; margin-bottom:10px}
+  label.field > span{display:block; font-size:12.5px; color:var(--sub); font-weight:700; margin-bottom:5px}
+  input,select,textarea{
+    width:100%; font-size:16px; padding:12px; border:1.5px solid var(--line);
+    border-radius:11px; background:#fbfdfe; color:var(--ink); font-family:inherit}
+  input:focus,select:focus,textarea:focus{outline:none; border-color:var(--brand)}
+  textarea{min-height:64px; resize:vertical}
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+
+  /* Pills / badges */
+  .pill{display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:800;
+    padding:4px 9px; border-radius:999px; white-space:nowrap}
+  .pill.ok{background:var(--ok-soft); color:var(--ok)}
+  .pill.warn{background:var(--warn-soft); color:var(--warn)}
+  .pill.danger{background:var(--danger-soft); color:var(--danger)}
+  .pill.pend{background:var(--pend-soft); color:var(--pend)}
+  .pill.info{background:var(--brand-soft); color:var(--brand)}
+  .pill.grey{background:#eef2f4; color:var(--sub)}
+
+  /* List items */
+  .item{display:flex; align-items:center; gap:11px; padding:12px 4px; border-bottom:1px solid var(--line)}
+  .item:last-child{border-bottom:0}
+  .avatar{width:40px; height:40px; border-radius:12px; flex:none; display:flex; align-items:center;
+    justify-content:center; font-weight:800; font-size:15px; background:var(--brand-soft); color:var(--brand)}
+  .item .t{font-weight:800; font-size:15px}
+  .item .d{font-size:12.5px; color:var(--sub); margin-top:1px}
+
+  .empty{text-align:center; color:var(--sub); padding:28px 10px; font-size:14px}
+  .empty .ic{font-size:34px; display:block; margin-bottom:8px; opacity:.5}
+
+  /* stat grid */
+  .stats{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .stat{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 14px; box-shadow:var(--shadow)}
+  .stat .n{font-size:24px; font-weight:900; letter-spacing:-1px}
+  .stat .l{font-size:12px; color:var(--sub); font-weight:700; margin-top:2px}
+  .stat.tap{cursor:pointer}
+
+  /* segmented control */
+  .seg{display:flex; background:#eaf1f3; border-radius:12px; padding:4px; gap:4px; margin-bottom:12px}
+  .seg button{flex:1; border:0; background:transparent; font-weight:800; font-size:13px; color:var(--sub);
+    padding:9px 4px; border-radius:9px; cursor:pointer}
+  .seg button.on{background:#fff; color:var(--brand); box-shadow:0 1px 4px rgba(0,0,0,.08)}
+
+  /* search */
+  .search{position:relative; margin-bottom:10px}
+  .search input{padding-left:38px}
+  .search .ic{position:absolute; left:12px; top:50%; transform:translateY(-50%); opacity:.5}
+
+  /* Bottom nav */
+  nav.tabs{position:fixed; left:0; right:0; bottom:0; z-index:30; background:#fff;
+    border-top:1px solid var(--line); display:flex; padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+    box-shadow:0 -4px 16px rgba(16,60,74,.06)}
+  nav.tabs button{flex:1; border:0; background:transparent; color:var(--sub); cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:3px; padding:5px 2px; font-weight:700}
+  nav.tabs button .i{font-size:21px; line-height:1}
+  nav.tabs button .x{font-size:10.5px}
+  nav.tabs button.on{color:var(--brand)}
+
+  /* Modal */
+  .modal-bg{position:fixed; inset:0; background:rgba(16,40,50,.45); z-index:50; display:none;
+    align-items:flex-end; justify-content:center}
+  .modal-bg.open{display:flex; animation:fade .15s}
+  .modal{background:#fff; width:100%; max-width:640px; border-radius:20px 20px 0 0; padding:18px 16px 22px;
+    max-height:92vh; overflow:auto; animation:slideup .22s cubic-bezier(.2,.8,.2,1)}
+  @keyframes slideup{from{transform:translateY(100%)}to{transform:none}}
+  .modal h3{margin:0 0 14px; font-size:17px; font-weight:900}
+  .modal .close{position:absolute}
+  .grabber{width:38px; height:4px; border-radius:9px; background:#d5e0e4; margin:0 auto 14px}
+
+  .toast{position:fixed; left:50%; bottom:calc(84px + env(safe-area-inset-bottom)); transform:translateX(-50%);
+    background:#12303a; color:#fff; font-size:13.5px; font-weight:700; padding:11px 18px; border-radius:999px;
+    z-index:80; opacity:0; transition:opacity .2s, transform .2s; pointer-events:none; box-shadow:var(--shadow)}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(-4px)}
+
+  .divider{height:1px; background:var(--line); margin:12px 0}
+  .hint{font-size:12px; color:var(--sub); background:var(--brand-soft); border-radius:10px; padding:9px 11px; margin-bottom:10px}
+
+  /* 역할(권한) — 직원 모드에서는 관리자 전용 요소 숨김 */
+  body[data-role="staff"] .admin-only{ display:none !important; }
+  .roletag{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.22);color:#fff;white-space:nowrap;flex:none;cursor:pointer}
+  #syncBadge{flex:none}
+  .abadge{position:absolute; top:0; right:0; min-width:17px; height:17px; padding:0 4px; border-radius:999px;
+    background:#e5484d; color:#fff; font-size:10px; font-weight:900; display:none; align-items:center; justify-content:center; line-height:1}
+  /* 잠금 화면(참여/승인대기/거절) */
+  #gate{position:fixed; inset:0; z-index:70; background:var(--bg); overflow:auto; display:none}
+  #gate.show{display:block}
+  .gatewrap{max-width:460px; margin:0 auto; min-height:100dvh; display:flex; flex-direction:column;
+    justify-content:center; padding:32px 22px; text-align:center}
+  .gate-ic{font-size:52px; margin-bottom:14px}
+  .gate-h{font-size:21px; font-weight:900; margin-bottom:8px; color:var(--ink)}
+  .gate-p{font-size:14px; color:var(--sub); margin-bottom:22px; line-height:1.6}
+  .gate-card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:var(--shadow); text-align:left}
+  .pinbox{letter-spacing:8px; text-align:center; font-size:24px; font-weight:800}
+  #adminBanner{background:var(--warn-soft); color:var(--warn); font-size:12.5px; font-weight:700;
+    padding:9px 14px; text-align:center; cursor:pointer; display:none}
+  #adminBanner.show{display:block}
+
+  /* 임플란트 모듈 */
+  .summary3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px}
+  .summary3 .stat{padding:11px 12px}
+  .chips{display:flex; gap:7px; overflow-x:auto; margin-bottom:12px; padding-bottom:2px}
+  .chip{white-space:nowrap; border:1.5px solid var(--line); background:#fff; color:var(--sub);
+    font-weight:800; font-size:13px; padding:8px 13px; border-radius:11px; cursor:pointer; flex:none}
+  .chip.on{background:var(--brand); color:#fff; border-color:var(--brand)}
+  table.mtx{border-collapse:separate; border-spacing:5px; width:100%}
+  table.mtx th{font-size:11px; color:var(--sub); font-weight:800; padding:1px}
+  table.mtx td.rowh{font-size:12px; font-weight:900; text-align:right; padding-right:2px; white-space:nowrap}
+  .mtx .cell{border-radius:10px; text-align:center; padding:8px 2px; font-weight:900; font-size:15px;
+    border:1.5px solid transparent; cursor:pointer; min-width:40px}
+  .mtx .cell .u{display:block; font-size:9px; font-weight:700; opacity:.7}
+  .mtx .cell.ok{background:var(--ok-soft); color:#0f7a4f; border-color:#cfeadd}
+  .mtx .cell.low{background:var(--warn-soft); color:#9a6410; border-color:#f0d9a8}
+  .mtx .cell.zero{background:var(--danger-soft); color:#a23a2a; border-color:#f0c9c0}
+  .mtx .cell.empty{background:#f6f8fb; color:#aab3bf; font-weight:700}
+  .legend2{display:flex; gap:14px; font-size:11.5px; color:var(--sub); font-weight:700; margin-top:8px}
+  .legend2 i{width:11px; height:11px; border-radius:4px; display:inline-block; margin-right:4px; vertical-align:-1px}
+  .legend2 i.ok{background:#cfeadd}.legend2 i.low{background:#f0d9a8}.legend2 i.zero{background:#f0c9c0}
+  .btnrow{display:flex; gap:8px}
+</style>
+<!-- 엑셀(.xlsx) 읽기용 라이브러리(SheetJS). 없으면 CSV만 지원 -->
+<script src="xlsx.mini.min.js" onerror="window.__noXLSX=1"></script>
+<!-- 공유 버전(실시간 동기화)용 Firebase. 인터넷/설정 없으면 자동으로 '이 기기 저장' 모드 -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" onerror="window.__noFB=1"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" onerror="window.__noFB=1"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" onerror="window.__noFB=1"></script>
+<script src="firebase-config.js" onerror="window.__noCfg=1"></script>
+</head>
+<body>
+
+<header class="app">
+  <div class="wrap">
+    <span class="logo">🏥</span>
+    <div>
+      <h1 id="hospName">우리병원 관리</h1>
+      <div class="sub" id="todayStr">오늘</div>
+    </div>
+    <span id="roleTag" class="roletag" style="margin-left:auto" onclick="openMenu()">👤 직원</span>
+    <button class="hbtn" style="margin-left:8px; position:relative; padding:8px 10px" onclick="openAlerts()">🔔<span id="alertBadge" class="abadge">0</span></button>
+    <span id="syncBadge" class="pill grey" style="margin-left:6px; background:rgba(255,255,255,.2); color:#fff" onclick="openMenu()">이 기기</span>
+    <button class="hbtn" style="margin-left:6px" onclick="openMenu()">⚙️</button>
+  </div>
+</header>
+<div id="adminBanner" onclick="openMenu()"></div>
+
+<main class="wrap">
+
+  <!-- ============ 홈 ============ -->
+  <section class="page active" id="page-home">
+    <h2 class="sec">오늘 한눈에</h2>
+    <div class="stats">
+      <div class="stat tap" onclick="go('att')"><div class="n" id="hStatIn">0</div><div class="l">현재 근무중</div></div>
+      <div class="stat tap" onclick="go('inv')"><div class="n" id="hStatLow" style="color:var(--warn)">0</div><div class="l">재고 부족 품목</div></div>
+      <div class="stat tap admin-only" onclick="go('leave')"><div class="n" id="hStatPend" style="color:var(--pend)">0</div><div class="l">연월차 승인대기</div></div>
+      <div class="stat tap admin-only" onclick="go('staff')"><div class="n" id="hStatStaff">0</div><div class="l">전체 직원</div></div>
+    </div>
+
+    <h2 class="sec">빠른 입력</h2>
+    <div class="card">
+      <div class="two" style="gap:10px">
+        <button class="btn ghost" onclick="go('att')">🕒 출퇴근 체크</button>
+        <button class="btn ghost" onclick="quickInvDialog()">📦 재고 입출고</button>
+        <button class="btn ghost" onclick="go('leave'); leaveTab('new')">🌴 연월차 신청</button>
+        <button class="btn ghost admin-only" onclick="openStaffForm()">👤 직원 추가</button>
+      </div>
+    </div>
+
+    <h2 class="sec">⚠️ 부족 재고</h2>
+    <div class="card" id="homeLow"></div>
+
+    <h2 class="sec">🕒 오늘 근무 현황</h2>
+    <div class="card" id="homeAtt"></div>
+  </section>
+
+  <!-- ============ 재고 ============ -->
+  <section class="page" id="page-inv">
+    <div class="seg" id="invMode">
+      <button class="on" data-m="general" onclick="setInvMode('general')">📦 일반 재고</button>
+      <button data-m="implant" onclick="setInvMode('implant')">🦷 임플란트</button>
+    </div>
+    <div id="invGeneral">
+      <div class="spread" style="margin:4px 2px 12px">
+        <h2 class="sec" style="margin:0">📦 재고 현황</h2>
+        <div class="row" style="gap:6px">
+          <button class="btn sm soft" onclick="openImport()">⬆ 엑셀</button>
+          <button class="btn sm" onclick="openInvForm()">＋ 품목</button>
+        </div>
+      </div>
+      <div class="search"><span class="ic">🔎</span><input id="invSearch" placeholder="품목·분류 검색" oninput="renderInv()"></div>
+      <div class="seg" id="invFilter">
+        <button class="on" data-f="all" onclick="setInvFilter('all')">전체</button>
+        <button data-f="low" onclick="setInvFilter('low')">부족</button>
+        <button data-f="ok" onclick="setInvFilter('ok')">충분</button>
+      </div>
+      <div id="invList"></div>
+    </div>
+    <div id="invImplant" style="display:none"></div>
+  </section>
+
+  <!-- ============ 출퇴근 ============ -->
+  <section class="page" id="page-att">
+    <div class="spread" style="margin:4px 2px 12px">
+      <h2 class="sec" style="margin:0">🕒 출퇴근</h2>
+      <input type="date" id="attDate" style="width:auto" onchange="renderAtt()">
+    </div>
+    <div class="hint">이름 옆 <b>출근</b>/<b>퇴근</b> 버튼만 누르면 시간이 자동 기록돼요.</div>
+    <div id="attList"></div>
+    <div class="spread" style="margin:18px 2px 8px">
+      <h2 class="sec" style="margin:0">이번 달 근무 시간</h2>
+      <button class="btn xs soft" onclick="exportAttendance()">⬇ 내보내기</button>
+    </div>
+    <div class="card" id="attMonthly"></div>
+  </section>
+
+  <!-- ============ 연월차 ============ -->
+  <section class="page" id="page-leave">
+    <div class="seg">
+      <button class="on admin-only" id="lt-status" onclick="leaveTab('status')">잔여 현황</button>
+      <button class="admin-only" id="lt-list" onclick="leaveTab('list')">신청 내역</button>
+      <button id="lt-new" onclick="leaveTab('new')">＋ 신청</button>
+    </div>
+    <div id="leaveStatus"></div>
+    <div id="leaveList" style="display:none"></div>
+    <div id="leaveNew" style="display:none"></div>
+  </section>
+
+  <!-- ============ 직원 ============ -->
+  <section class="page" id="page-staff">
+    <div class="spread" style="margin:4px 2px 12px">
+      <h2 class="sec" style="margin:0">👥 직원 명단</h2>
+      <button class="btn sm" onclick="openStaffForm()">＋ 직원</button>
+    </div>
+    <div id="staffList"></div>
+  </section>
+
+</main>
+
+<nav class="tabs" id="tabs">
+  <button class="on" data-t="home" onclick="go('home')"><span class="i">🏠</span><span class="x">홈</span></button>
+  <button data-t="inv" onclick="go('inv')"><span class="i">📦</span><span class="x">재고</span></button>
+  <button data-t="att" onclick="go('att')"><span class="i">🕒</span><span class="x">출퇴근</span></button>
+  <button data-t="leave" onclick="go('leave')"><span class="i">🌴</span><span class="x">연월차</span></button>
+  <button class="admin-only" data-t="staff" onclick="go('staff')"><span class="i">👥</span><span class="x">직원</span></button>
+</nav>
+
+<div id="gate"><div class="gatewrap" id="gateBody"></div></div>
+
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal"><div class="grabber"></div><div id="modalBody"></div></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ==========================================================================
+   병원 관리 앱 — 재고 / 출퇴근 / 연월차 / 직원
+   데이터는 이 기기의 브라우저(localStorage)에 저장됩니다.
+   ========================================================================== */
+
+const STORE_KEY = 'hospital_mgr_v1';
+const $ = (s,el=document)=>el.querySelector(s);
+const $$ = (s,el=document)=>[...el.querySelectorAll(s)];
+const uid = ()=> Date.now().toString(36) + Math.floor(Math.random()*1e6).toString(36);
+
+/* ---------- 저장소 ---------- */
+let DB;
+function loadDB(){
+  try{ DB = JSON.parse(localStorage.getItem(STORE_KEY)); }catch(e){ DB=null; }
+  if(!DB || !DB.version){
+    DB = { version:1, hospName:'우리병원 관리',
+      staff:[], inventory:[], invLogs:[], attendance:[], leaves:[] };
+    seedDemo();
+    saveDB();
+  }
+  ensureSchema();
+}
+function ensureSchema(){ if(!DB) return; if(!Array.isArray(DB.members)) DB.members=[]; if(typeof DB.adminPin!=='string') DB.adminPin=''; if(!Array.isArray(DB.implants)) DB.implants=[]; }
+function saveDB(){ localStorage.setItem(STORE_KEY, JSON.stringify(DB)); cloudPush(); }
+
+function seedDemo(){
+  const s1=uid(), s2=uid(), s3=uid();
+  DB.staff = [
+    {id:s1, name:'김간호', dept:'간호부', position:'수간호사', joinDate:'2021-03-02', annualTotal:16, phone:'01011112222', pin:'1234', role:'관리자', active:true},
+    {id:s2, name:'이원무', dept:'원무과', position:'주임', joinDate:'2022-07-11', annualTotal:15, phone:'01033334444', pin:'1234', role:'직원', active:true},
+    {id:s3, name:'박물리', dept:'물리치료실', position:'치료사', joinDate:'2023-01-04', annualTotal:15, phone:'01055556666', pin:'1234', role:'직원', active:true},
+  ];
+  DB.inventory = [
+    {id:uid(), name:'주사기 10cc', category:'소모품', unit:'개', qty:40, minQty:100, note:'', updatedAt:now()},
+    {id:uid(), name:'멸균거즈', category:'소모품', unit:'팩', qty:22, minQty:20, note:'', updatedAt:now()},
+    {id:uid(), name:'알콜솜', category:'소모품', unit:'통', qty:8, minQty:15, note:'', updatedAt:now()},
+    {id:uid(), name:'라텍스 장갑(M)', category:'위생', unit:'박스', qty:12, minQty:10, note:'', updatedAt:now()},
+    {id:uid(), name:'수액세트', category:'의약외품', unit:'개', qty:60, minQty:50, note:'', updatedAt:now()},
+  ];
+  DB.implants = [
+    { id:uid(), brand:'오스템', line:'TS III', part:'픽스처', vendor:'A덴탈', price:180000, note:'',
+      variants:[
+        {id:uid(),label:'3.5×8.5',qty:8,minQty:3,lot:''},{id:uid(),label:'3.5×10',qty:2,minQty:3,lot:''},
+        {id:uid(),label:'4.0×8.5',qty:12,minQty:3,lot:''},{id:uid(),label:'4.0×10',qty:3,minQty:3,lot:''},
+        {id:uid(),label:'4.0×11.5',qty:7,minQty:3,lot:''},{id:uid(),label:'4.5×10',qty:0,minQty:3,lot:''},
+        {id:uid(),label:'5.0×10',qty:5,minQty:3,lot:''},
+      ]},
+    { id:uid(), brand:'오스템', line:'힐링 어버트먼트', part:'힐링캡', vendor:'A덴탈', price:9000, note:'',
+      variants:[ {id:uid(),label:'Ø4.5 GH3',qty:10,minQty:5,lot:''},{id:uid(),label:'Ø4.5 GH5',qty:4,minQty:5,lot:''},{id:uid(),label:'Ø5.5 GH3',qty:6,minQty:5,lot:''} ]},
+  ];
+}
+
+/* ---------- 날짜/시간 유틸 ---------- */
+function now(){ return new Date().toISOString(); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function todayKey(d=new Date()){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function monthKey(d=new Date()){ return d.getFullYear()+'-'+pad(d.getMonth()+1); }
+function fmtDate(key){ if(!key) return '-'; const [y,m,d]=key.split('-'); return `${m}.${d}`; }
+function fmtDateFull(key){ if(!key) return '-'; const [y,m,d]=key.split('-');
+  const wd=['일','월','화','수','목','금','토'][new Date(+y,+m-1,+d).getDay()];
+  return `${y}.${m}.${d}(${wd})`; }
+function fmtTime(iso){ if(!iso) return '--:--'; const d=new Date(iso); return pad(d.getHours())+':'+pad(d.getMinutes()); }
+function hoursBetween(a,b){ if(!a||!b) return 0; return Math.max(0,(new Date(b)-new Date(a))/3.6e6); }
+function fmtHours(h){ const H=Math.floor(h), M=Math.round((h-H)*60); return H+'시간'+(M?` ${M}분`:''); }
+
+/* ---------- 조회 헬퍼 ---------- */
+const staffById = id => DB.staff.find(s=>s.id===id);
+const itemById = id => DB.inventory.find(i=>i.id===id);
+const initials = name => (name||'?').slice(0,2);
+
+/* 연차 사용/잔여 계산 (해당 연도, 승인된 것 기준) */
+function leaveUsed(staffId, type, year){
+  return DB.leaves.filter(l=>l.staffId===staffId && l.status==='approved'
+      && (type? l.type===type : true)
+      && l.startDate && l.startDate.startsWith(String(year)))
+    .reduce((s,l)=>s+(+l.days||0),0);
+}
+function annualRemain(st){
+  const y = new Date().getFullYear();
+  const used = DB.leaves.filter(l=>l.staffId===st.id && l.status==='approved'
+      && l.startDate && l.startDate.startsWith(String(y)))
+    .reduce((s,l)=>s+(+l.days||0),0);
+  return { total:(+st.annualTotal||0), used, remain:(+st.annualTotal||0)-used };
+}
+
+/* ========================================================================
+   네비게이션
+   ======================================================================== */
+const RENDER = { home:renderHome, inv:renderInvPage, att:renderAtt, leave:renderLeave, staff:renderStaff };
+let invMode='general';
+function setInvMode(m){ invMode=m;
+  $$('#invMode button').forEach(b=>b.classList.toggle('on', b.dataset.m===m));
+  $('#invGeneral').style.display = m==='general'?'':'none';
+  $('#invImplant').style.display = m==='implant'?'':'none';
+  renderInvPage();
+}
+function renderInvPage(){ if(invMode==='implant') renderImplant(); else renderInv(); }
+let currentTab='home';
+function go(tab){
+  if(tab==='staff' && !isAdmin()) tab='home';   // 직원은 직원탭 접근 불가
+  currentTab=tab;
+  $$('.page').forEach(p=>p.classList.remove('active'));
+  $('#page-'+tab).classList.add('active');
+  $$('#tabs button').forEach(b=>b.classList.toggle('on', b.dataset.t===tab));
+  (RENDER[tab]||(()=>{}))();
+  window.scrollTo(0,0);
+}
+function rerenderCurrent(){ (RENDER[currentTab]||renderHome)(); }
+
+/* ========================================================================
+   홈
+   ======================================================================== */
+function renderHome(){
+  const tk = todayKey();
+  const inNow = DB.attendance.filter(a=>a.date===tk && a.inAt && !a.outAt).length;
+  const low = DB.inventory.filter(i=>i.qty <= i.minQty);
+  const pend = DB.leaves.filter(l=>l.status==='pending');
+  $('#hStatIn').textContent = inNow;
+  $('#hStatLow').textContent = low.length;
+  $('#hStatPend').textContent = pend.length;
+  $('#hStatStaff').textContent = DB.staff.length;
+
+  // 부족 재고
+  const lowBox = $('#homeLow');
+  if(!low.length){ lowBox.innerHTML = emptyBox('✅','부족한 재고가 없어요'); }
+  else lowBox.innerHTML = low.slice(0,6).map(i=>`
+    <div class="item">
+      <div class="avatar" style="background:var(--warn-soft);color:var(--warn)">📦</div>
+      <div class="grow"><div class="t">${esc(i.name)}</div>
+        <div class="d">현재 ${i.qty}${esc(i.unit)} · 최소 ${i.minQty}${esc(i.unit)}</div></div>
+      <span class="pill ${i.qty===0?'danger':'warn'}">${i.qty===0?'품절':'부족'}</span>
+    </div>`).join('') + (low.length>6?`<div class="tiny muted" style="text-align:center;padding-top:8px">외 ${low.length-6}건</div>`:'');
+
+  // 오늘 근무
+  const att = $('#homeAtt');
+  const todays = DB.attendance.filter(a=>a.date===tk);
+  if(!DB.staff.length){ att.innerHTML = emptyBox('👤','먼저 직원을 등록해 주세요'); }
+  else att.innerHTML = DB.staff.map(s=>{
+    const a = todays.find(x=>x.staffId===s.id);
+    let st = `<span class="pill grey">미출근</span>`;
+    if(a&&a.inAt&&a.outAt) st=`<span class="pill info">퇴근 ${fmtTime(a.outAt)}</span>`;
+    else if(a&&a.inAt) st=`<span class="pill ok">근무중 ${fmtTime(a.inAt)}~</span>`;
+    return `<div class="item"><div class="avatar">${esc(initials(s.name))}</div>
+      <div class="grow"><div class="t">${esc(s.name)}</div><div class="d">${esc(s.dept||'')}</div></div>${st}</div>`;
+  }).join('');
+  refreshBell();
+}
+function emptyBox(ic,txt){ return `<div class="empty"><span class="ic">${ic}</span>${esc(txt)}</div>`; }
+function dDays(dateStr){ if(!dateStr) return null; const d=new Date(dateStr+'T00:00:00'); if(isNaN(d)) return null;
+  const t=new Date(todayKey()+'T00:00:00'); return Math.round((d-t)/86400000); }
+function expChipHtml(dd){ return dd===null?'' : dd<0?`<span class="pill danger">만료</span>` : dd<=30?`<span class="pill warn">D-${dd}</span>` : ''; }
+function won(n){ return (+n||0).toLocaleString('ko-KR')+'원'; }
+
+/* ===== 알림 인박스 ===== */
+function computeAlerts(){
+  const a=[];
+  DB.inventory.forEach(i=>{
+    if(i.qty===0) a.push({level:'danger',icon:'📦',title:`${i.name} 품절`,sub:`최소 ${i.minQty}${i.unit}`,tab:'inv'});
+    else if(i.qty<=i.minQty) a.push({level:'warn',icon:'📦',title:`${i.name} 부족`,sub:`현재 ${i.qty}${i.unit} · 최소 ${i.minQty}${i.unit}`,tab:'inv'});
+    const dd=dDays(i.expiry);
+    if(dd!==null){
+      if(dd<0) a.push({level:'danger',icon:'📅',title:`${i.name} 유통기한 만료`,sub:`${i.expiry} · ${-dd}일 지남`,tab:'inv'});
+      else if(dd<=30) a.push({level:'warn',icon:'📅',title:`${i.name} 유통기한 임박`,sub:`D-${dd} · ${i.expiry}`,tab:'inv'});
+    }
+  });
+  (DB.implants||[]).forEach(p=>p.variants.forEach(v=>{
+    if(v.qty===0) a.push({level:'danger',icon:'🦷',title:`${p.brand} ${v.label} 품절`,sub:`${p.part||''} · ${p.line||''}`,tab:'inv',mode:'implant'});
+    else if(v.qty<=(+v.minQty||0)) a.push({level:'warn',icon:'🦷',title:`${p.brand} ${v.label} 부족`,sub:`${v.qty}개 · 최소 ${v.minQty}`,tab:'inv',mode:'implant'});
+  }));
+  if(isAdmin()){
+    DB.leaves.filter(l=>l.status==='pending').forEach(l=>{ const s=staffById(l.staffId);
+      a.push({level:'info',icon:'🌴',title:`연월차 승인 대기 · ${s?s.name:'(직원)'}`,sub:`${fmtDate(l.startDate)}${l.startDate!==l.endDate?'~'+fmtDate(l.endDate):''} · ${l.days}일`,tab:'leave'}); });
+  }
+  const rank={danger:0,warn:1,info:2};
+  a.sort((x,y)=>rank[x.level]-rank[y.level]);
+  return a;
+}
+function refreshBell(){ const el=$('#alertBadge'); if(!el) return; const n=computeAlerts().length;
+  el.textContent=n>99?'99+':n; el.style.display=n?'flex':'none'; }
+function openAlerts(){
+  const a=computeAlerts();
+  const body = a.length ? a.map(x=>`
+    <div class="item" style="cursor:pointer" onclick="closeModal(); go('${x.tab}');${x.mode?` setInvMode('${x.mode}');`:''}">
+      <div class="avatar" style="background:${x.level==='danger'?'var(--danger-soft)':x.level==='warn'?'var(--warn-soft)':'var(--brand-soft)'};color:${x.level==='danger'?'var(--danger)':x.level==='warn'?'var(--warn)':'var(--brand)'}">${x.icon}</div>
+      <div class="grow"><div class="t" style="font-size:14.5px">${esc(x.title)}</div><div class="d tiny muted">${esc(x.sub)}</div></div>
+      <span class="tiny muted">›</span>
+    </div>`).join('') : emptyBox('✅','지금은 알림이 없어요');
+  modal(`<h3>🔔 알림 ${a.length?`<span class="pill danger">${a.length}</span>`:''}</h3>
+    <div class="tiny muted" style="margin-bottom:10px">부족·품절·유통기한·연월차 승인 대기를 모았어요. 항목을 누르면 해당 화면으로 이동해요.</div>
+    ${body}`);
+}
+
+/* ========================================================================
+   재고
+   ======================================================================== */
+let invFilter='all';
+function setInvFilter(f){ invFilter=f; $$('#invFilter button').forEach(b=>b.classList.toggle('on',b.dataset.f===f)); renderInv(); }
+function renderInv(){
+  const q = ($('#invSearch').value||'').trim().toLowerCase();
+  let list = DB.inventory.slice().sort((a,b)=>(a.qty<=a.minQty?0:1)-(b.qty<=b.minQty?0:1) || a.name.localeCompare(b.name,'ko'));
+  if(q) list = list.filter(i=>(i.name+' '+(i.category||'')).toLowerCase().includes(q));
+  if(invFilter==='low') list=list.filter(i=>i.qty<=i.minQty);
+  if(invFilter==='ok') list=list.filter(i=>i.qty>i.minQty);
+  const box = $('#invList');
+  if(!list.length){ box.innerHTML = `<div class="card">${emptyBox('📦', DB.inventory.length?'조건에 맞는 품목이 없어요':'＋품목 버튼으로 재고를 추가하세요')}</div>`; return; }
+  box.innerHTML = list.map(i=>{
+    const lowFlag = i.qty<=i.minQty;
+    const pill = i.qty===0?`<span class="pill danger">품절</span>`
+      : lowFlag?`<span class="pill warn">부족</span>`:`<span class="pill ok">충분</span>`;
+    const dd=dDays(i.expiry);
+    const sub = [i.category||'분류없음', '최소 '+i.minQty+esc(i.unit), i.vendor?esc(i.vendor):'', dd!==null?(dd<0?'유통기한 만료':'유통기한 '+i.expiry):''].filter(Boolean).join(' · ');
+    return `<div class="card" style="padding:12px 14px">
+      <div class="spread">
+        <div class="grow" onclick="openItemDetail('${i.id}')" style="cursor:pointer">
+          <div class="row wrap" style="gap:6px"><span class="t" style="font-weight:800;font-size:15.5px">${esc(i.name)}</span>${pill}${expChipHtml(dd)}</div>
+          <div class="d tiny muted" style="margin-top:2px">${sub}</div>
+        </div>
+        <div style="text-align:right"><div class="big" style="color:${lowFlag?'var(--warn)':'var(--ink)'}">${i.qty}</div>
+          <div class="tiny muted">${esc(i.unit)}</div></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn ok sm grow" onclick="quickAdjust('${i.id}','in')">＋ 입고</button>
+        <button class="btn warn sm grow" onclick="quickAdjust('${i.id}','out')">－ 출고</button>
+        <button class="btn soft sm" onclick="openItemDetail('${i.id}')">내역</button>
+      </div>
+    </div>`;
+  }).join('');
+  refreshBell();
+}
+
+function quickAdjust(id, type){
+  const it = itemById(id); if(!it) return;
+  modal(`
+    <h3>${type==='in'?'📥 입고':'📤 출고'} · ${esc(it.name)}</h3>
+    <div class="tiny muted" style="margin-bottom:12px">현재 재고 <b>${it.qty}${esc(it.unit)}</b></div>
+    <label class="field"><span>수량 (${esc(it.unit)})</span>
+      <input id="qAmt" type="number" inputmode="numeric" min="1" value="1" style="font-size:22px;text-align:center;font-weight:800"></label>
+    <div class="row wrap" style="margin-bottom:12px">
+      ${[1,5,10,50,100].map(n=>`<button class="btn xs soft" onclick="qAmt.value=${n}">${n}</button>`).join('')}
+    </div>
+    <label class="field"><span>메모 (선택)</span><input id="qMemo" placeholder="예: 납품 / 처치 사용"></label>
+    <button class="btn ${type==='in'?'ok':'warn'} block" onclick="doAdjust('${id}','${type}')">
+      ${type==='in'?'입고 처리':'출고 처리'}</button>`);
+}
+function doAdjust(id,type){
+  const it=itemById(id); const amt=Math.abs(parseInt($('#qAmt').value,10)||0);
+  if(!amt){ toast('수량을 입력하세요'); return; }
+  const before=it.qty;
+  it.qty = type==='in'? it.qty+amt : Math.max(0, it.qty-amt);
+  it.updatedAt=now();
+  DB.invLogs.unshift({id:uid(), itemId:id, type, amount:amt, qtyBefore:before, qtyAfter:it.qty,
+    memo:($('#qMemo').value||'').trim(), at:now()});
+  saveDB(); closeModal(); renderInv();
+  toast(`${it.name} ${type==='in'?'입고':'출고'} ${amt}${it.unit} 완료`);
+  if(it.qty<=it.minQty) setTimeout(()=>toast(`⚠️ ${it.name} 재고 부족 (${it.qty}${it.unit})`),1400);
+}
+function quickInvDialog(){
+  if(!DB.inventory.length){ go('inv'); openInvForm(); return; }
+  go('inv');
+}
+
+function openInvForm(edit){
+  const it = edit? itemById(edit):null;
+  modal(`
+    <h3>${it?'품목 수정':'품목 추가'}</h3>
+    <label class="field"><span>품목명 *</span><input id="fName" value="${it?esc(it.name):''}" placeholder="예: 주사기 10cc"></label>
+    <div class="two">
+      <label class="field"><span>분류</span><input id="fCat" value="${it?esc(it.category||''):''}" placeholder="소모품"></label>
+      <label class="field"><span>단위</span><input id="fUnit" value="${it?esc(it.unit):'개'}" placeholder="개"></label>
+    </div>
+    <div class="two">
+      <label class="field"><span>현재 수량</span><input id="fQty" type="number" inputmode="numeric" value="${it?it.qty:0}"></label>
+      <label class="field"><span>최소 보유량</span><input id="fMin" type="number" inputmode="numeric" value="${it?it.minQty:10}"></label>
+    </div>
+    <div class="tiny muted" style="margin:-2px 2px 12px">현재 수량이 최소 보유량 이하로 내려가면 부족 알림이 떠요.</div>
+    <div class="two">
+      <label class="field"><span>거래처 (선택)</span><input id="fVendor" value="${it?esc(it.vendor||''):''}" placeholder="예: A메디칼"></label>
+      <label class="field"><span>단가 (원, 선택)</span><input id="fPrice" type="number" inputmode="numeric" value="${it&&it.price?it.price:''}" placeholder="0"></label>
+    </div>
+    <label class="field"><span>유통기한 (선택)</span><input id="fExpiry" type="date" value="${it?esc(it.expiry||''):''}"></label>
+    <label class="field"><span>메모 (선택)</span><input id="fNote" value="${it?esc(it.note||''):''}" placeholder="보관 위치 등"></label>
+    <div class="row">
+      <button class="btn block" onclick="saveItem('${it?it.id:''}')">${it?'저장':'추가'}</button>
+      ${it?`<button class="btn danger" onclick="delItem('${it.id}')">삭제</button>`:''}
+    </div>`);
+}
+function saveItem(id){
+  const name=$('#fName').value.trim(); if(!name){ toast('품목명을 입력하세요'); return; }
+  const data={ name, category:$('#fCat').value.trim(), unit:$('#fUnit').value.trim()||'개',
+    qty:Math.max(0,parseInt($('#fQty').value,10)||0), minQty:Math.max(0,parseInt($('#fMin').value,10)||0),
+    vendor:$('#fVendor').value.trim(), price:Math.max(0,parseInt($('#fPrice').value,10)||0),
+    expiry:$('#fExpiry').value||'', note:$('#fNote').value.trim(), updatedAt:now() };
+  if(id){ Object.assign(itemById(id), data); }
+  else { DB.inventory.push({id:uid(), ...data}); }
+  saveDB(); closeModal(); renderInv(); toast('저장되었습니다');
+}
+function delItem(id){
+  if(!confirm('이 품목을 삭제할까요? 입출고 내역도 함께 삭제됩니다.')) return;
+  DB.inventory = DB.inventory.filter(i=>i.id!==id);
+  DB.invLogs = DB.invLogs.filter(l=>l.itemId!==id);
+  saveDB(); closeModal(); renderInv(); toast('삭제되었습니다');
+}
+function openItemDetail(id){
+  const it=itemById(id); if(!it) return;
+  const logs=DB.invLogs.filter(l=>l.itemId===id).slice(0,30);
+  const logHtml = logs.length? logs.map(l=>`
+    <div class="item">
+      <div class="avatar" style="background:${l.type==='in'?'var(--ok-soft)':'var(--warn-soft)'};color:${l.type==='in'?'var(--ok)':'var(--warn)'}">${l.type==='in'?'📥':'📤'}</div>
+      <div class="grow"><div class="t" style="font-size:14px">${l.type==='in'?'입고':(l.type==='out'?'출고':'조정')} ${l.amount}${esc(it.unit)}</div>
+        <div class="d">${esc(l.memo||'')||'메모 없음'} · ${new Date(l.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div></div>
+      <div class="tiny muted">→ ${l.qtyAfter}${esc(it.unit)}</div>
+    </div>`).join('') : emptyBox('🗒️','입출고 내역이 없어요');
+  modal(`
+    <h3>${esc(it.name)}</h3>
+    <div class="card" style="box-shadow:none;background:var(--brand-soft);border:0">
+      <div class="spread"><div><div class="big" style="color:var(--brand)">${it.qty}${esc(it.unit)}</div>
+        <div class="tiny muted">${esc(it.category||'분류없음')} · 최소 ${it.minQty}${esc(it.unit)}</div>
+        ${(it.vendor||it.price||it.expiry)?`<div class="tiny muted" style="margin-top:3px">${[it.vendor?'거래처 '+esc(it.vendor):'', it.price?'단가 '+won(it.price):'', it.expiry?'유통기한 '+it.expiry+(dDays(it.expiry)!==null?` (${dDays(it.expiry)<0?'만료':'D-'+dDays(it.expiry)})`:''):''].filter(Boolean).join(' · ')}</div>`:''}</div>
+        <button class="btn soft sm" onclick="openInvForm('${it.id}')">✏️ 수정</button></div>
+    </div>
+    <div class="row" style="margin:4px 0 14px">
+      <button class="btn ok grow" onclick="quickAdjust('${it.id}','in')">＋ 입고</button>
+      <button class="btn warn grow" onclick="quickAdjust('${it.id}','out')">－ 출고</button>
+    </div>
+    <h2 class="sec" style="margin-top:4px">입출고 내역</h2>${logHtml}`);
+}
+
+/* ========================================================================
+   재고 엑셀/CSV 불러오기
+   ======================================================================== */
+const COLMAP = {
+  name:['품목명','품명','이름','품목','자재명','재료명','물품명','제품명','name','item'],
+  category:['분류','카테고리','구분','종류','category'],
+  unit:['단위','unit'],
+  qty:['현재수량','수량','재고','재고수량','보유수량','현재고','현재','qty','stock'],
+  minQty:['최소보유량','최소수량','최소','안전재고','적정재고','min','최소재고'],
+  vendor:['거래처','업체','공급처','구매처','vendor','supplier'],
+  price:['단가','가격','금액','매입가','price'],
+  expiry:['유통기한','유효기간','만료일','소비기한','expiry','exp'],
+  note:['메모','비고','위치','보관위치','note','memo'],
+};
+function openImport(){
+  const noXlsx = window.__noXLSX || typeof XLSX==='undefined';
+  modal(`
+    <h3>⬆ 재고 엑셀/CSV 불러오기</h3>
+    <div class="hint">엑셀(.xlsx) 또는 CSV 파일을 올리면 품목이 한 번에 등록돼요.
+      같은 품목명이 있으면 <b>수량이 갱신</b>됩니다.</div>
+    <button class="btn soft block" onclick="downloadTemplate()">📄 양식 파일 내려받기 (CSV)</button>
+    <div class="tiny muted" style="margin:8px 2px 14px">양식 열: <b>품목명 · 분류 · 단위 · 현재수량 · 최소보유량 · 거래처 · 단가 · 유통기한 · 메모</b><br>
+      열 제목이 있으면 순서가 달라도 자동 인식해요.</div>
+    <label class="btn block" style="cursor:pointer">📂 파일 선택해서 불러오기
+      <input type="file" id="impFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleImport(event)"></label>
+    ${noXlsx?`<div class="tiny" style="color:var(--warn);margin-top:10px">⚠️ 지금은 CSV만 읽을 수 있어요(엑셀 라이브러리 미로딩). .xlsx를 쓰려면 <b>xlsx.mini.min.js</b> 파일이 index.html과 같은 폴더에 있어야 해요.</div>`:''}
+    <div class="divider"></div>
+    <div class="tiny muted">📷 손으로 적은 목록/사진이 있으면, 그 사진을 <b>Claude 대화창에 보내주세요.</b>
+      바로 불러올 수 있는 파일로 만들어 드려요.</div>`);
+}
+function downloadTemplate(){
+  const csv='﻿품목명,분류,단위,현재수량,최소보유량,거래처,단가,유통기한,메모\n주사기 10cc,소모품,개,40,100,A메디칼,120,,\n리도카인 마취제,약품,관,15,20,B팜,1800,2026-12-31,냉장\n니트릴장갑(L),위생,박스,5,10,C상사,8000,,창고2\n';
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='재고_양식.csv'; a.click(); URL.revokeObjectURL(a.href);
+  toast('양식 파일을 저장했어요');
+}
+function handleImport(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const isCsv=/\.csv$/i.test(f.name);
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      let rows;
+      if(!isCsv && typeof XLSX!=='undefined'){
+        const wb=XLSX.read(new Uint8Array(r.result),{type:'array'});
+        rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+      }else{
+        rows=parseCSV(typeof r.result==='string'?r.result:new TextDecoder('utf-8').decode(r.result));
+      }
+      const items=rowsToItems(rows);
+      if(!items.length){ toast('읽을 수 있는 품목이 없어요'); return; }
+      previewImport(items);
+    }catch(e){ toast('파일을 읽지 못했어요. 양식을 확인해 주세요'); }
+  };
+  if(!isCsv && typeof XLSX!=='undefined') r.readAsArrayBuffer(f);
+  else r.readAsText(f,'utf-8');
+}
+function parseCSV(text){
+  const out=[]; let row=[], cur='', q=false;
+  text=text.replace(/^﻿/,'');
+  for(let i=0;i<text.length;i++){ const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else { if(c==='"') q=true;
+      else if(c===','){ row.push(cur); cur=''; }
+      else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n')i++; row.push(cur); if(row.some(x=>x!=='')) out.push(row); row=[]; cur=''; }
+      else cur+=c; } }
+  if(cur!==''||row.length){ row.push(cur); if(row.some(x=>x!=='')) out.push(row); }
+  return out;
+}
+function rowsToItems(rows){
+  rows=rows.filter(r=>r&&r.some(c=>String(c).trim()!==''));
+  if(!rows.length) return [];
+  const norm=s=>String(s||'').replace(/\s|\(.*?\)/g,'').toLowerCase();
+  const header=rows[0].map(norm);
+  const idx={};
+  for(const key in COLMAP){ idx[key]=header.findIndex(h=>COLMAP[key].some(k=>norm(k)===h||h.includes(norm(k)))); }
+  let hasHeader = idx.name>=0;
+  // 헤더가 없으면 순서 가정: 품목명,분류,단위,현재수량,최소보유량,메모
+  let dataRows, col;
+  if(hasHeader){ dataRows=rows.slice(1); col=idx; }
+  else { dataRows=rows; col={name:0,category:1,unit:2,qty:3,minQty:4,vendor:5,price:6,expiry:7,note:8}; }
+  const num=v=>{ const n=parseInt(String(v).replace(/[^\d-]/g,''),10); return isNaN(n)?null:n; };
+  const pick=(r,k)=> col[k]>=0 && col[k]!=null ? r[col[k]] : undefined;
+  const normDate=v=>{ v=String(v??'').trim(); if(!v) return ''; const m=v.match(/(\d{4})\D?(\d{1,2})\D?(\d{1,2})/); return m?`${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`:''; };
+  const items=[];
+  for(const r of dataRows){
+    const name=String(pick(r,'name')??'').trim(); if(!name) continue;
+    items.push({
+      name,
+      category:String(pick(r,'category')??'').trim(),
+      unit:String(pick(r,'unit')??'').trim()||'개',
+      qty:Math.max(0,num(pick(r,'qty'))??0),
+      minQty:Math.max(0,num(pick(r,'minQty'))??10),
+      vendor:String(pick(r,'vendor')??'').trim(),
+      price:Math.max(0,num(pick(r,'price'))??0),
+      expiry:normDate(pick(r,'expiry')),
+      note:String(pick(r,'note')??'').trim(),
+    });
+  }
+  return items;
+}
+let _pendingImport=[];
+function previewImport(items){
+  _pendingImport=items;
+  const exist=new Set(DB.inventory.map(i=>i.name.trim()));
+  const isNew=items.filter(i=>!exist.has(i.name.trim())).length;
+  const upd=items.length-isNew;
+  const rowsHtml=items.slice(0,8).map(i=>`
+    <div class="item" style="padding:8px 2px">
+      <div class="grow"><div class="t" style="font-size:14px">${esc(i.name)}
+        ${exist.has(i.name.trim())?'<span class="pill grey">수정</span>':'<span class="pill info">신규</span>'}</div>
+        <div class="d tiny muted">${esc(i.category||'분류없음')} · ${i.qty}${esc(i.unit)} · 최소 ${i.minQty}</div></div></div>`).join('');
+  modal(`
+    <h3>불러오기 미리보기</h3>
+    <div class="row" style="gap:8px;margin-bottom:12px">
+      <div class="stat grow"><div class="n">${items.length}</div><div class="l">전체 품목</div></div>
+      <div class="stat grow"><div class="n" style="color:var(--brand)">${isNew}</div><div class="l">신규</div></div>
+      <div class="stat grow"><div class="n" style="color:var(--warn)">${upd}</div><div class="l">수정</div></div>
+    </div>
+    ${rowsHtml}${items.length>8?`<div class="tiny muted" style="text-align:center;padding:6px">외 ${items.length-8}건</div>`:''}
+    <div class="row" style="margin-top:14px">
+      <button class="btn soft grow" onclick="openImport()">취소</button>
+      <button class="btn grow" onclick="applyImport()">${items.length}건 반영하기</button>
+    </div>`);
+}
+function applyImport(){
+  let added=0, updated=0;
+  for(const it of _pendingImport){
+    const ex=DB.inventory.find(x=>x.name.trim()===it.name.trim());
+    if(ex){ Object.assign(ex,{category:it.category||ex.category, unit:it.unit||ex.unit,
+      qty:it.qty, minQty:it.minQty, vendor:it.vendor||ex.vendor, price:it.price||ex.price,
+      expiry:it.expiry||ex.expiry, note:it.note||ex.note, updatedAt:now()}); updated++; }
+    else { DB.inventory.push({id:uid(), ...it, updatedAt:now()}); added++; }
+  }
+  _pendingImport=[]; saveDB(); closeModal(); renderInv(); renderHome();
+  toast(`반영 완료 · 신규 ${added} · 수정 ${updated}`);
+}
+
+/* ========================================================================
+   임플란트 모듈 (브랜드·부품종류·규격 매트릭스)
+   ======================================================================== */
+let currentImplantId=null;
+const implantById=id=>DB.implants.find(p=>p.id===id);
+function parseDL(label){ const m=String(label||'').match(/^\s*(?:Ø|ø|D)?\s*(\d+(?:\.\d+)?)\s*[x×X*]\s*(\d+(?:\.\d+)?)\s*$/); return m?{d:parseFloat(m[1]),l:parseFloat(m[2])}:null; }
+function vState(v){ return v.qty===0?'zero':(v.qty<=(+v.minQty||0)?'low':'ok'); }
+
+function renderImplant(){
+  const box=$('#invImplant'); const list=DB.implants||[];
+  let total=0, low=0, zero=0;
+  list.forEach(p=>p.variants.forEach(v=>{ total+=(+v.qty||0); if(v.qty===0)zero++; else if(v.qty<=(+v.minQty||0))low++; }));
+  const head=`<div class="spread" style="margin:2px 2px 10px"><h2 class="sec" style="margin:0">🦷 임플란트</h2>
+    <button class="btn sm" onclick="openImplantForm()">＋ 제품</button></div>`;
+  if(!list.length){ box.innerHTML = head+`<div class="card">${emptyBox('🦷','등록된 임플란트가 없어요.<br>＋제품으로 브랜드·부품·규격을 직접 추가하세요.')}</div>`; refreshBell(); return; }
+  if(!currentImplantId || !implantById(currentImplantId)) currentImplantId=list[0].id;
+  const summary=`<div class="summary3">
+    <div class="stat"><div class="n">${total}</div><div class="l">전체 수량</div></div>
+    <div class="stat"><div class="n" style="color:var(--warn)">${low}</div><div class="l">부족 규격</div></div>
+    <div class="stat"><div class="n" style="color:var(--danger)">${zero}</div><div class="l">품절 규격</div></div></div>`;
+  const chips=`<div class="chips">${list.map(p=>`<button class="chip ${p.id===currentImplantId?'on':''}" onclick="selectImplant('${p.id}')">${esc(p.brand)} ${esc(p.line||'')}</button>`).join('')}
+    <button class="chip" onclick="openImplantForm()">＋ 제품</button></div>`;
+  box.innerHTML = head+summary+chips+implantCard(implantById(currentImplantId));
+  refreshBell();
+}
+function selectImplant(id){ currentImplantId=id; renderImplant(); }
+function implantCard(p){
+  const meta=[p.part||'', p.vendor?esc(p.vendor):'', p.price?won(p.price):''].filter(Boolean).join(' · ');
+  const head=`<div class="spread"><div><div class="t" style="font-weight:900;font-size:16px">${esc(p.brand)} ${esc(p.line||'')}</div>
+    <div class="d tiny muted">${meta}</div></div>
+    <button class="btn soft xs" onclick="openImplantForm('${p.id}')">✏️ 제품</button></div>`;
+  const parsed=p.variants.map(v=>({v,dl:parseDL(v.label)}));
+  const useMatrix=(p.part==='픽스처') && parsed.some(x=>x.dl);
+  const body = p.variants.length ? (useMatrix?matrixHtml(p,parsed):variantRows(p,p.variants)) : emptyBox('📐','규격을 추가하세요');
+  const bulk = p.part==='픽스처' ? `<button class="btn soft sm" onclick="openBulkVariants('${p.id}')">규격 일괄추가</button>` : '';
+  return `<div class="card">${head}<div class="divider"></div>${body}
+    <div class="btnrow" style="margin-top:12px"><button class="btn sm grow" onclick="openVariantForm('${p.id}')">＋ 규격 추가</button>${bulk}</div></div>`;
+}
+function matrixHtml(p,parsed){
+  const fx=parsed.filter(x=>x.dl), others=parsed.filter(x=>!x.dl);
+  const dias=[...new Set(fx.map(x=>x.dl.d))].sort((a,b)=>a-b);
+  const lens=[...new Set(fx.map(x=>x.dl.l))].sort((a,b)=>a-b);
+  const at=(d,l)=>fx.find(x=>x.dl.d===d&&x.dl.l===l);
+  let t=`<div class="tiny muted" style="margin-bottom:6px">가로 = 길이 · 세로 = 지름 · 셀을 누르면 입/출고·LOT</div>`;
+  t+=`<div style="overflow-x:auto"><table class="mtx"><tr><th></th>${lens.map(l=>`<th>${l}</th>`).join('')}</tr>`;
+  dias.forEach(d=>{ t+=`<tr><td class="rowh">Ø${d}</td>`+lens.map(l=>{ const c=at(d,l);
+    if(!c) return `<td><div class="cell empty" onclick="openVariantForm('${p.id}','','${d}×${l}')">＋</div></td>`;
+    return `<td><div class="cell ${vState(c.v)}" onclick="openVariant('${p.id}','${c.v.id}')">${c.v.qty}<span class="u">개</span></div></td>`;
+  }).join('')+`</tr>`; });
+  t+=`</table></div><div class="legend2"><span><i class="ok"></i>충분</span><span><i class="low"></i>부족</span><span><i class="zero"></i>품절</span></div>`;
+  if(others.length) t+=`<div class="tiny muted" style="margin:12px 2px 4px">기타 규격</div>`+variantRows(p,others.map(x=>x.v));
+  return t;
+}
+function variantRows(p,vars){
+  return vars.map(v=>{ const st=vState(v);
+    const pill=st==='zero'?'<span class="pill danger">품절</span>':st==='low'?'<span class="pill warn">부족</span>':'';
+    return `<div class="item">
+      <div class="grow"><div class="t" style="font-size:14.5px">${esc(v.label)} ${pill}</div>
+        <div class="d tiny muted">${v.qty}개 · 최소 ${v.minQty||0}${v.lot?' · LOT '+esc(v.lot):''}</div></div>
+      <div class="row" style="gap:5px">
+        <button class="btn ok xs" onclick="adjustVariant('${p.id}','${v.id}','in')">＋</button>
+        <button class="btn warn xs" onclick="adjustVariant('${p.id}','${v.id}','out')">－</button>
+        <button class="btn soft xs" onclick="openVariant('${p.id}','${v.id}')">⋯</button>
+      </div></div>`;
+  }).join('');
+}
+const PARTS=['픽스처','어버트먼트','힐링캡','커버스크류','기타'];
+function openImplantForm(edit){
+  const p=edit?implantById(edit):null;
+  modal(`<h3>${p?'임플란트 제품 수정':'임플란트 제품 추가'}</h3>
+    <div class="two">
+      <label class="field"><span>브랜드 *</span><input id="ipBrand" value="${p?esc(p.brand):''}" placeholder="예: 오스템"></label>
+      <label class="field"><span>제품라인</span><input id="ipLine" value="${p?esc(p.line||''):''}" placeholder="예: TS III"></label>
+    </div>
+    <label class="field"><span>부품 종류 *</span>
+      <input id="ipPart" list="partList" value="${p?esc(p.part||'픽스처'):'픽스처'}" placeholder="픽스처">
+      <datalist id="partList">${PARTS.map(x=>`<option value="${x}">`).join('')}</datalist></label>
+    <div class="tiny muted" style="margin:-4px 2px 10px">픽스처는 규격이 "지름×길이"면 자동 매트릭스로 보여요.</div>
+    <div class="two">
+      <label class="field"><span>거래처 (선택)</span><input id="ipVendor" value="${p?esc(p.vendor||''):''}" placeholder="A덴탈"></label>
+      <label class="field"><span>단가 (원, 선택)</span><input id="ipPrice" type="number" inputmode="numeric" value="${p&&p.price?p.price:''}" placeholder="0"></label>
+    </div>
+    <div class="row"><button class="btn block" onclick="saveImplant('${p?p.id:''}')">${p?'저장':'추가'}</button>
+      ${p?`<button class="btn danger" onclick="delImplant('${p.id}')">삭제</button>`:''}</div>`);
+}
+function saveImplant(id){
+  const brand=$('#ipBrand').value.trim(); if(!brand){ toast('브랜드를 입력하세요'); return; }
+  const data={ brand, line:$('#ipLine').value.trim(), part:$('#ipPart').value.trim()||'픽스처',
+    vendor:$('#ipVendor').value.trim(), price:Math.max(0,parseInt($('#ipPrice').value,10)||0) };
+  if(id){ Object.assign(implantById(id), data); }
+  else { const np={id:uid(), ...data, note:'', variants:[]}; DB.implants.push(np); currentImplantId=np.id; }
+  saveDB(); closeModal(); renderImplant(); toast('저장되었습니다');
+  if(!id) setTimeout(()=>openVariantForm(currentImplantId),150);
+}
+function delImplant(id){
+  if(!confirm('이 임플란트 제품과 모든 규격을 삭제할까요?')) return;
+  DB.implants=DB.implants.filter(p=>p.id!==id); currentImplantId=null;
+  saveDB(); closeModal(); renderImplant(); toast('삭제되었습니다');
+}
+function openVariantForm(pid, editVid, preset){
+  const p=implantById(pid); const v=editVid?p.variants.find(x=>x.id===editVid):null;
+  modal(`<h3>${v?'규격 수정':'규격 추가'} · ${esc(p.brand)} ${esc(p.line||'')}</h3>
+    <label class="field"><span>규격 *</span><input id="vLabel" value="${v?esc(v.label):(preset||'')}" placeholder="${p.part==='픽스처'?'예: 4.0×10':'예: Ø4.5 GH3'}"></label>
+    <div class="two">
+      <label class="field"><span>현재 수량</span><input id="vQty" type="number" inputmode="numeric" value="${v?v.qty:0}"></label>
+      <label class="field"><span>최소 수량</span><input id="vMin" type="number" inputmode="numeric" value="${v?(v.minQty||0):2}"></label>
+    </div>
+    <label class="field"><span>LOT / 제조번호 (선택)</span><input id="vLot" value="${v?esc(v.lot||''):''}"></label>
+    <div class="row"><button class="btn block" onclick="saveVariant('${pid}','${v?v.id:''}')">${v?'저장':'추가'}</button>
+      ${v?`<button class="btn danger" onclick="delVariant('${pid}','${v.id}')">삭제</button>`:''}</div>`);
+}
+function saveVariant(pid,vid){
+  const p=implantById(pid); const label=$('#vLabel').value.trim(); if(!label){ toast('규격을 입력하세요'); return; }
+  const data={ label, qty:Math.max(0,parseInt($('#vQty').value,10)||0), minQty:Math.max(0,parseInt($('#vMin').value,10)||0), lot:$('#vLot').value.trim() };
+  if(vid){ Object.assign(p.variants.find(x=>x.id===vid), data); }
+  else { if(p.variants.find(x=>x.label===label)){ toast('이미 있는 규격이에요'); return; } p.variants.push({id:uid(), ...data}); }
+  saveDB(); closeModal(); renderImplant(); toast('저장되었습니다');
+}
+function delVariant(pid,vid){ const p=implantById(pid); p.variants=p.variants.filter(x=>x.id!==vid); saveDB(); closeModal(); renderImplant(); toast('삭제되었습니다'); }
+function openVariant(pid,vid){
+  const p=implantById(pid); const v=p.variants.find(x=>x.id===vid); if(!v) return;
+  modal(`<h3>${esc(p.brand)} ${esc(v.label)}</h3>
+    <div class="card" style="box-shadow:none;background:var(--brand-soft);border:0;padding:12px 14px">
+      <div class="big" style="color:var(--brand)">${v.qty}개</div>
+      <div class="tiny muted">${esc(p.part||'')} · 최소 ${v.minQty||0}${v.lot?' · LOT '+esc(v.lot):''}</div></div>
+    <div class="row" style="margin:6px 0 12px"><button class="btn ok grow" onclick="adjustVariant('${pid}','${vid}','in')">＋ 입고</button>
+      <button class="btn warn grow" onclick="adjustVariant('${pid}','${vid}','out')">－ 사용</button></div>
+    <button class="btn soft block" onclick="openVariantForm('${pid}','${vid}')">규격 / LOT 편집</button>`);
+}
+function adjustVariant(pid,vid,type){
+  const p=implantById(pid); const v=p.variants.find(x=>x.id===vid);
+  modal(`<h3>${type==='in'?'📥 입고':'📤 사용'} · ${esc(p.brand)} ${esc(v.label)}</h3>
+    <div class="tiny muted" style="margin-bottom:12px">현재 <b>${v.qty}개</b></div>
+    <label class="field"><span>수량</span><input id="ivAmt" type="number" inputmode="numeric" value="1" style="font-size:22px;text-align:center;font-weight:800"></label>
+    <div class="row wrap" style="margin-bottom:12px">${[1,2,5,10].map(n=>`<button class="btn xs soft" onclick="ivAmt.value=${n}">${n}</button>`).join('')}</div>
+    <label class="field"><span>LOT / 제조번호 (선택)</span><input id="ivLot" value="${esc(v.lot||'')}"></label>
+    <button class="btn ${type==='in'?'ok':'warn'} block" onclick="doVariantAdjust('${pid}','${vid}','${type}')">${type==='in'?'입고 처리':'사용 처리'}</button>`);
+}
+function doVariantAdjust(pid,vid,type){
+  const p=implantById(pid); const v=p.variants.find(x=>x.id===vid);
+  const amt=Math.abs(parseInt($('#ivAmt').value,10)||0); if(!amt){ toast('수량을 입력하세요'); return; }
+  v.qty = type==='in'? v.qty+amt : Math.max(0, v.qty-amt);
+  const lot=($('#ivLot').value||'').trim(); if(lot) v.lot=lot;
+  saveDB(); closeModal(); renderImplant();
+  toast(`${p.brand} ${v.label} ${type==='in'?'입고':'사용'} ${amt}개`);
+  if(v.qty<=(+v.minQty||0)) setTimeout(()=>toast(`⚠️ ${v.label} ${v.qty===0?'품절':'재고 부족'} (${v.qty}개)`),1300);
+}
+function openBulkVariants(pid){
+  modal(`<h3>규격 일괄 추가</h3>
+    <div class="tiny muted" style="margin-bottom:12px">지름과 길이를 쉼표로 나눠 입력하면 조합이 한 번에 만들어져요. (이미 있는 규격은 건너뜀)</div>
+    <label class="field"><span>지름(mm)</span><input id="blD" placeholder="3.5, 4.0, 4.5, 5.0"></label>
+    <label class="field"><span>길이(mm)</span><input id="blL" placeholder="7, 8.5, 10, 11.5, 13"></label>
+    <label class="field"><span>규격별 최소수량</span><input id="blMin" type="number" inputmode="numeric" value="2"></label>
+    <button class="btn block" onclick="doBulkVariants('${pid}')">추가</button>`);
+}
+function doBulkVariants(pid){
+  const p=implantById(pid);
+  const ds=($('#blD').value||'').split(/[,\s]+/).map(s=>s.trim()).filter(Boolean);
+  const ls=($('#blL').value||'').split(/[,\s]+/).map(s=>s.trim()).filter(Boolean);
+  const min=Math.max(0,parseInt($('#blMin').value,10)||0);
+  if(!ds.length||!ls.length){ toast('지름과 길이를 입력하세요'); return; }
+  let added=0;
+  ds.forEach(d=>ls.forEach(l=>{ const label=`${d}×${l}`; if(!p.variants.find(v=>v.label===label)){ p.variants.push({id:uid(),label,qty:0,minQty:min,lot:''}); added++; } }));
+  saveDB(); closeModal(); renderImplant(); toast(`${added}개 규격을 추가했어요`);
+}
+
+/* ========================================================================
+   출퇴근
+   ======================================================================== */
+function renderAtt(){
+  if(!$('#attDate').value) $('#attDate').value = todayKey();
+  const dk = $('#attDate').value;
+  const box=$('#attList');
+  if(!DB.staff.length){ box.innerHTML=`<div class="card">${emptyBox('👤','직원 탭에서 직원을 먼저 등록하세요')}</div>`; $('#attMonthly').innerHTML=''; return; }
+  const roster = isAdmin()? DB.staff.filter(s=>s.active!==false) : DB.staff.filter(s=>currentUser()&&s.id===currentUser().id);
+  box.innerHTML = roster.map(s=>{
+    const a = DB.attendance.find(x=>x.staffId===s.id && x.date===dk);
+    const inT=a&&a.inAt?fmtTime(a.inAt):null, outT=a&&a.outAt?fmtTime(a.outAt):null;
+    let statusLine = '미출근';
+    if(inT&&outT) statusLine=`출근 ${inT} · 퇴근 ${outT} · ${fmtHours(hoursBetween(a.inAt,a.outAt))}`;
+    else if(inT) statusLine=`출근 ${inT} · 근무중`;
+    let btns;
+    if(!inT) btns=`<button class="btn ok sm" onclick="checkIn('${s.id}','${dk}')">출근</button>`;
+    else if(!outT) btns=`<button class="btn warn sm" onclick="checkOut('${s.id}','${dk}')">퇴근</button>`;
+    else btns=`<button class="btn soft sm" onclick="resetAtt('${s.id}','${dk}')">초기화</button>`;
+    return `<div class="card" style="padding:12px 14px"><div class="spread">
+      <div class="row" style="gap:11px"><div class="avatar">${esc(initials(s.name))}</div>
+        <div><div class="t" style="font-weight:800">${esc(s.name)}</div>
+          <div class="d tiny ${inT&&!outT?'':'muted'}" style="color:${inT&&!outT?'var(--ok)':''}">${statusLine}</div></div></div>
+      ${btns}</div></div>`;
+  }).join('');
+
+  // 이번 달 근무시간 (선택 날짜 기준 월)
+  const mk = dk.slice(0,7);
+  const rows = roster.map(s=>{
+    const recs = DB.attendance.filter(a=>a.staffId===s.id && a.date.startsWith(mk));
+    const days = recs.filter(a=>a.inAt).length;
+    const hrs = recs.reduce((t,a)=>t+hoursBetween(a.inAt,a.outAt),0);
+    return {s,days,hrs};
+  });
+  $('#attMonthly').innerHTML = rows.map(r=>`
+    <div class="item"><div class="avatar">${esc(initials(r.s.name))}</div>
+      <div class="grow"><div class="t" style="font-size:14.5px">${esc(r.s.name)}</div>
+        <div class="d">${mk.replace('-','년 ')}월 · 근무 ${r.days}일</div></div>
+      <div style="text-align:right"><div style="font-weight:800">${fmtHours(r.hrs)}</div></div></div>`).join('');
+}
+function getAtt(staffId,date,create){
+  let a=DB.attendance.find(x=>x.staffId===staffId && x.date===date);
+  if(!a && create){ a={id:uid(), staffId, date, inAt:null, outAt:null, memo:''}; DB.attendance.push(a); }
+  return a;
+}
+function checkIn(id,date){
+  const a=getAtt(id,date,true); a.inAt = stampFor(date); saveDB(); renderAtt(); renderHome();
+  toast(`${staffById(id).name} 출근 ${fmtTime(a.inAt)}`);
+}
+function checkOut(id,date){
+  const a=getAtt(id,date,true); if(!a.inAt) a.inAt=stampFor(date);
+  a.outAt=stampFor(date); saveDB(); renderAtt(); renderHome();
+  toast(`${staffById(id).name} 퇴근 · ${fmtHours(hoursBetween(a.inAt,a.outAt))} 근무`);
+}
+function resetAtt(id,date){
+  DB.attendance = DB.attendance.filter(a=>!(a.staffId===id&&a.date===date));
+  saveDB(); renderAtt(); renderHome(); toast('기록을 초기화했어요');
+}
+/* 오늘이면 현재 시각, 과거/미래 날짜면 그 날짜의 현재 시각으로 스탬프 */
+function stampFor(date){
+  const n=new Date();
+  if(date===todayKey()) return n.toISOString();
+  const [y,m,d]=date.split('-');
+  return new Date(+y,+m-1,+d,n.getHours(),n.getMinutes(),n.getSeconds()).toISOString();
+}
+
+/* ========================================================================
+   연월차
+   ======================================================================== */
+let leaveCur='status';
+function leaveTab(t){          // 하위 탭 전환 (연월차 페이지 내부)
+  if(!isAdmin()) t='new';     // 직원은 '신청'만
+  leaveCur=t;
+  ['status','list','new'].forEach(x=>{
+    $('#leave'+cap(x)).style.display = x===t?'block':'none';
+    $('#lt-'+x).classList.toggle('on', x===t);
+  });
+  if(t==='status') renderLeaveStatus();
+  if(t==='list') renderLeaveList();
+  if(t==='new') renderLeaveNew();
+}
+function renderLeave(){ leaveTab(leaveCur); }  // go('leave')에서 호출 — 재귀 없음
+
+function renderLeaveStatus(){
+  const box=$('#leaveStatus');
+  if(!DB.staff.length){ box.innerHTML=`<div class="card">${emptyBox('👤','직원을 먼저 등록하세요')}</div>`; return; }
+  const y=new Date().getFullYear();
+  box.innerHTML = `<h2 class="sec">${y}년 연차 잔여</h2>` + DB.staff.map(s=>{
+    const r=annualRemain(s); const ratio = r.total? Math.min(100,Math.round(r.used/r.total*100)):0;
+    return `<div class="card" style="padding:13px 14px">
+      <div class="spread"><div class="row" style="gap:10px"><div class="avatar">${esc(initials(s.name))}</div>
+        <div><div class="t" style="font-weight:800">${esc(s.name)}</div><div class="d tiny muted">${esc(s.dept||'')}</div></div></div>
+        <div style="text-align:right"><div class="big" style="font-size:22px;color:${r.remain<=1?'var(--danger)':'var(--brand)'}">${r.remain}</div>
+          <div class="tiny muted">잔여 / 총 ${r.total}일</div></div></div>
+      <div style="height:7px;background:#eef2f4;border-radius:9px;margin-top:10px;overflow:hidden">
+        <div style="height:100%;width:${ratio}%;background:${r.remain<=1?'var(--danger)':'var(--brand)'}"></div></div>
+      <div class="tiny muted" style="margin-top:5px">사용 ${r.used}일</div>
+    </div>`;
+  }).join('');
+}
+function renderLeaveList(){
+  const box=$('#leaveList');
+  const list=DB.leaves.slice().sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
+  if(!list.length){ box.innerHTML=`<div class="card">${emptyBox('🌴','연월차 신청 내역이 없어요')}</div>`; return; }
+  const typeLabel={annual:'연차',monthly:'월차',half:'반차',sick:'병가',etc:'기타'};
+  box.innerHTML = list.map(l=>{
+    const s=staffById(l.staffId);
+    const stPill = l.status==='approved'?`<span class="pill ok">승인</span>`
+      : l.status==='rejected'?`<span class="pill danger">반려</span>`:`<span class="pill pend">대기</span>`;
+    const range = l.startDate===l.endDate? fmtDateFull(l.startDate) : `${fmtDate(l.startDate)}~${fmtDate(l.endDate)}`;
+    return `<div class="card" style="padding:12px 14px">
+      <div class="spread"><div class="row" style="gap:8px">
+        <span class="pill info">${typeLabel[l.type]||l.type}</span>
+        <span style="font-weight:800">${esc(s?s.name:'(삭제된 직원)')}</span></div>${stPill}</div>
+      <div class="tiny muted" style="margin:7px 0 2px">${range} · ${l.days}일 ${l.reason?'· '+esc(l.reason):''}</div>
+      <div class="row" style="margin-top:9px">
+        ${l.status!=='approved'?`<button class="btn ok xs" onclick="setLeave('${l.id}','approved')">승인</button>`:''}
+        ${l.status!=='rejected'?`<button class="btn danger xs" onclick="setLeave('${l.id}','rejected')">반려</button>`:''}
+        ${l.status!=='pending'?`<button class="btn soft xs" onclick="setLeave('${l.id}','pending')">대기로</button>`:''}
+        <button class="btn soft xs" onclick="delLeave('${l.id}')">삭제</button>
+      </div></div>`;
+  }).join('');
+}
+function setLeave(id,status){ const l=DB.leaves.find(x=>x.id===id); if(!l)return; l.status=status; saveDB(); renderLeaveList(); renderHome();
+  toast(status==='approved'?'승인했습니다':status==='rejected'?'반려했습니다':'대기로 변경'); }
+function delLeave(id){ if(!confirm('이 신청을 삭제할까요?'))return; DB.leaves=DB.leaves.filter(x=>x.id!==id); saveDB(); renderLeaveList(); renderHome(); toast('삭제되었습니다'); }
+
+function renderLeaveNew(){
+  const box=$('#leaveNew'); const u=currentUser();
+  if(!DB.staff.length){ box.innerHTML=`<div class="card">${emptyBox('👤','직원을 먼저 등록하세요')}</div>`; return; }
+  const staffField = isAdmin()
+    ? `<label class="field"><span>직원 *</span><select id="lvStaff">${DB.staff.filter(s=>s.active!==false).map(s=>`<option value="${s.id}" ${u&&s.id===u.id?'selected':''}>${esc(s.name)} (${esc(s.dept||'')})</option>`).join('')}</select></label>`
+    : `<div class="card" style="box-shadow:none;background:var(--brand-soft);border:0;padding:10px 12px;margin-bottom:12px"><span class="tiny">신청자 · <b>${esc(u?u.name:'')}</b></span></div>`;
+  box.innerHTML = `<div class="card">
+    ${staffField}
+    <label class="field"><span>종류</span><select id="lvType" onchange="lvTypeChange()">
+      <option value="annual">연차 (1일)</option><option value="half">반차 (0.5일)</option>
+      <option value="monthly">월차 (1일)</option><option value="sick">병가</option><option value="etc">기타</option>
+    </select></label>
+    <div class="two">
+      <label class="field"><span>시작일 *</span><input id="lvStart" type="date" value="${todayKey()}" onchange="lvCalc()"></label>
+      <label class="field"><span>종료일 *</span><input id="lvEnd" type="date" value="${todayKey()}" onchange="lvCalc()"></label>
+    </div>
+    <label class="field"><span>사용 일수</span><input id="lvDays" type="number" step="0.5" value="1"></label>
+    <label class="field"><span>사유 (선택)</span><input id="lvReason" placeholder="예: 개인 사정"></label>
+    <button class="btn block" onclick="submitLeave()">신청하기</button>
+  </div>
+  <div class="hint" style="margin-top:12px">💡 신청하면 <b>관리자</b>가 승인/반려해요. 승인된 연차만 잔여일수에서 차감됩니다.</div>`;
+}
+function lvTypeChange(){ const t=$('#lvType').value; if(t==='half'){ $('#lvEnd').value=$('#lvStart').value; $('#lvDays').value=0.5; } else lvCalc(); }
+function lvCalc(){
+  const t=$('#lvType').value; if(t==='half'){ $('#lvEnd').value=$('#lvStart').value; $('#lvDays').value=0.5; return; }
+  const s=$('#lvStart').value, e=$('#lvEnd').value; if(!s||!e) return;
+  if(e<s){ $('#lvEnd').value=s; }
+  const days=Math.round((new Date($('#lvEnd').value)-new Date(s))/8.64e7)+1;
+  $('#lvDays').value=Math.max(1,days);
+}
+function submitLeave(){
+  const type=$('#lvType').value;
+  const staffId = isAdmin() ? ($('#lvStaff') && $('#lvStaff').value) : (currentUser() && currentUser().id);
+  if(!staffId){ toast('신청자를 확인하세요'); return; }
+  const startDate=$('#lvStart').value, endDate=$('#lvEnd').value, days=+$('#lvDays').value||0;
+  if(!startDate||!endDate){ toast('날짜를 선택하세요'); return; }
+  if(!days){ toast('사용 일수를 확인하세요'); return; }
+  DB.leaves.push({id:uid(), staffId, type, startDate, endDate:endDate<startDate?startDate:endDate,
+    days, reason:$('#lvReason').value.trim(), status:'pending', createdAt:now()});
+  saveDB(); toast('신청되었습니다'); leaveTab('list'); renderHome();
+}
+
+/* ========================================================================
+   직원
+   ======================================================================== */
+function renderStaff(){
+  const box=$('#staffList');
+  if(!DB.staff.length){ box.innerHTML=`<div class="card">${emptyBox('👥','＋직원 버튼으로 직원을 추가하세요')}</div>`; return; }
+  box.innerHTML = DB.staff.map(s=>{
+    const r=annualRemain(s);
+    return `<div class="card" style="padding:13px 14px" onclick="openStaffForm('${s.id}')">
+      <div class="spread"><div class="row" style="gap:11px"><div class="avatar">${esc(initials(s.name))}</div>
+        <div><div class="t" style="font-weight:800">${esc(s.name)} <span class="tiny muted" style="font-weight:600">${esc(s.position||'')}</span></div>
+          <div class="d tiny muted">${esc(s.dept||'부서 미지정')}${s.joinDate?' · 입사 '+s.joinDate:''}</div></div></div>
+        <div style="text-align:right"><div style="font-weight:800;color:var(--brand)">연차 ${r.remain}일</div>
+          <div class="tiny muted">/ ${r.total}일</div></div></div></div>`;
+  }).join('');
+}
+function openStaffForm(edit){
+  const s=edit?staffById(edit):null;
+  modal(`
+    <h3>${s?'직원 정보':'직원 추가'}</h3>
+    <label class="field"><span>이름 *</span><input id="sName" value="${s?esc(s.name):''}" placeholder="홍길동"></label>
+    <div class="two">
+      <label class="field"><span>부서</span><input id="sDept" value="${s?esc(s.dept||''):''}" placeholder="간호부"></label>
+      <label class="field"><span>직급</span><input id="sPos" value="${s?esc(s.position||''):''}" placeholder="간호사"></label>
+    </div>
+    <div class="two">
+      <label class="field"><span>전화번호 * (로그인 ID)</span><input id="sPhone" inputmode="numeric" value="${s?esc(s.phone||''):''}" placeholder="01012345678"></label>
+      <label class="field"><span>권한</span><select id="sRole">
+        <option value="직원" ${!s||s.role!=='관리자'?'selected':''}>직원</option>
+        <option value="관리자" ${s&&s.role==='관리자'?'selected':''}>관리자</option>
+      </select></label>
+    </div>
+    <label class="field"><span>${s?'PIN 재설정 (비우면 기존 유지)':'개인 PIN * (숫자 4자리 이상)'}</span><input id="sPin" class="pinbox" inputmode="numeric" maxlength="8" type="password" placeholder="••••"></label>
+    <div class="two">
+      <label class="field"><span>입사일</span><input id="sJoin" type="date" value="${s?esc(s.joinDate||''):''}"></label>
+      <label class="field"><span>연간 연차(일)</span><input id="sAnnual" type="number" inputmode="numeric" value="${s?s.annualTotal:15}"></label>
+    </div>
+    ${s?`<label class="field"><span>재직 상태</span><select id="sActive">
+      <option value="1" ${s.active!==false?'selected':''}>재직</option>
+      <option value="0" ${s.active===false?'selected':''}>퇴사 (로그인 차단)</option></select></label>`:''}
+    <div class="row">
+      <button class="btn block" onclick="saveStaff('${s?s.id:''}')">${s?'저장':'추가'}</button>
+      ${s?`<button class="btn danger" onclick="delStaff('${s.id}')">삭제</button>`:''}
+    </div>
+    <div class="tiny muted" style="margin-top:10px">직원은 <b>전화번호 + 개인 PIN</b>으로 로그인해요. 퇴사자는 삭제보다 <b>퇴사 처리</b>를 권장(기록 보존).</div>`);
+}
+function saveStaff(id){
+  const name=$('#sName').value.trim(); if(!name){ toast('이름을 입력하세요'); return; }
+  const phone=normPhone($('#sPhone').value); if(!phone){ toast('전화번호를 입력하세요'); return; }
+  if(DB.staff.some(x=>x.id!==id && normPhone(x.phone)===phone)){ toast('이미 등록된 전화번호예요'); return; }
+  const role=$('#sRole').value==='관리자'?'관리자':'직원';
+  const pinIn=($('#sPin').value||'').trim();
+  const base={ name, dept:$('#sDept').value.trim(), position:$('#sPos').value.trim(),
+    joinDate:$('#sJoin').value, annualTotal:Math.max(0,parseInt($('#sAnnual').value,10)||0), phone, role };
+  if(id){
+    const s=staffById(id);
+    if(pinIn){ if(!/^\d{4,8}$/.test(pinIn)){ toast('PIN은 숫자 4~8자리'); return; } base.pin=pinIn; }
+    const act=$('#sActive'); if(act) base.active = act.value==='1';
+    if(s.role==='관리자' && (role!=='관리자' || base.active===false)){
+      const others=DB.staff.filter(x=>x.id!==id && x.role==='관리자' && x.active!==false);
+      if(!others.length){ toast('최소 1명의 관리자가 필요해요'); return; }
+    }
+    Object.assign(s, base);
+  } else {
+    if(!/^\d{4,8}$/.test(pinIn)){ toast('개인 PIN을 숫자 4~8자리로 정하세요'); return; }
+    DB.staff.push({id:uid(), ...base, pin:pinIn, active:true, createdAt:now()});
+  }
+  saveDB(); closeModal(); renderStaff(); renderHome(); applyRole(); toast('저장되었습니다');
+}
+function delStaff(id){
+  const s=staffById(id);
+  if(s && s.role==='관리자'){
+    const others=DB.staff.filter(x=>x.id!==id && x.role==='관리자' && x.active!==false);
+    if(!others.length){ toast('마지막 관리자는 삭제할 수 없어요'); return; }
+  }
+  if(!confirm('이 직원을 삭제할까요? 출퇴근·연월차 기록도 함께 삭제됩니다. (퇴사 처리를 권장)')) return;
+  DB.staff=DB.staff.filter(s=>s.id!==id);
+  DB.attendance=DB.attendance.filter(a=>a.staffId!==id);
+  DB.leaves=DB.leaves.filter(l=>l.staffId!==id);
+  if(sessionId()===id) setSession('');
+  saveDB(); closeModal(); renderStaff(); renderHome(); applyRole(); toast('삭제되었습니다');
+}
+
+/* ========================================================================
+   설정 / 백업
+   ======================================================================== */
+function openStaffMenu(){
+  const u=currentUser();
+  modal(`<h3>⚙️ 설정</h3>
+    <div class="card" style="box-shadow:none;background:var(--brand-soft);border:0;padding:12px 14px">
+      <div class="row" style="gap:8px"><span class="pill info">👤 직원</span>
+      <span class="tiny">${u?esc(u.name)+' 님':'직원'} · 재고·출퇴근·연월차 신청 사용</span></div></div>
+    <button class="btn soft block" onclick="changeMyPin()">🔒 내 PIN 변경</button>
+    <button class="btn soft block" style="margin-top:8px" onclick="logout()">로그아웃</button>
+    <div class="tiny muted" style="margin:10px 2px 0">연월차 관리·설정·직원 관리는 관리자만 볼 수 있어요.</div>
+    <div class="tiny muted" style="text-align:center;margin-top:16px">병원 관리 앱 · v1</div>`);
+}
+function openMenu(){
+  if(!isAdmin()) return openStaffMenu();
+  const on = cloudReady;
+  const cfg = !!(window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.apiKey);
+  const syncCard = on
+    ? `<div class="card" style="box-shadow:none;background:var(--ok-soft);border:0;padding:12px 14px">
+         <div class="row" style="gap:8px"><span class="pill ok">☁︎ 공유중</span>
+         <span class="tiny">전 직원이 같은 데이터를 실시간으로 봅니다.</span></div></div>`
+    : `<div class="card" style="box-shadow:none;background:#eef2f4;border:0;padding:12px 14px">
+         <div class="row" style="gap:8px"><span class="pill grey">이 기기</span>
+         <span class="tiny">${cfg?'공유 서버에 연결 중이거나 오프라인이에요.':'지금은 이 기기에만 저장돼요. 공유하려면 <b>SETUP-공유버전.md</b> 참고.'}</span></div></div>`;
+  modal(`
+    <h3>⚙️ 설정 · 데이터 관리</h3>
+    ${syncCard}
+    <label class="field"><span>병원(앱) 이름</span><input id="setName" value="${esc(DB.hospName||'')}"></label>
+    <button class="btn block" onclick="saveHospName()">이름 저장</button>
+    <div class="divider"></div>
+    <div class="tiny muted" style="font-weight:800;margin:0 2px 8px">👑 관리자 · 계정</div>
+    <div class="two" style="gap:8px">
+      <button class="btn soft" onclick="changeMyPin()">🔒 내 PIN 변경</button>
+      <button class="btn soft" onclick="logout()">로그아웃</button>
+    </div>
+    <div class="tiny muted" style="margin:8px 2px 0">직원 계정(전화번호·PIN·권한)은 <b>직원 탭</b>에서 추가/수정하세요. 직원은 <b>본인 전화번호+PIN</b>으로 로그인해 재고·출퇴근·연월차 신청을 씁니다.</div>
+    <div class="divider"></div>
+    <div class="tiny muted" style="font-weight:800;margin:0 2px 8px">📊 리포트 내보내기 (엑셀에서 열림)</div>
+    <div class="two" style="gap:8px">
+      <button class="btn soft" onclick="exportInventory()">📦 재고 현황</button>
+      <button class="btn soft" onclick="exportAttendance()">🕒 이번 달 근무</button>
+      <button class="btn soft" onclick="exportLeaves()">🌴 연월차 내역</button>
+      <button class="btn soft" onclick="exportData()">💾 전체 백업(JSON)</button>
+    </div>
+    <div class="divider"></div>
+    <div class="hint">기기를 바꾸거나 옮길 땐 <b>전체 백업(JSON)</b>으로 내보낸 뒤 아래에서 불러오세요.</div>
+    <button class="btn soft block" onclick="importData()">📥 백업 파일 불러오기</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none" onchange="doImport(event)">
+    <div class="divider"></div>
+    <button class="btn danger block" onclick="wipeData()">전체 데이터 초기화</button>
+    <div class="tiny muted" style="text-align:center;margin-top:14px">병원 관리 앱 · v1 · 로컬 저장</div>`);
+}
+function saveHospName(){ DB.hospName=$('#setName').value.trim()||'우리병원 관리'; saveDB();
+  $('#hospName').textContent=DB.hospName; toast('저장되었습니다'); }
+function exportData(){
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`병원관리_백업_${todayKey()}.json`; a.click(); URL.revokeObjectURL(a.href);
+  toast('백업 파일을 저장했어요');
+}
+
+/* ---------- 리포트 내보내기 (엑셀에서 열리는 CSV) ---------- */
+function csvBlob(rows){
+  const q=v=>{ v=String(v==null?'':v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+  return new Blob(['﻿'+rows.map(r=>r.map(q).join(',')).join('\n')],{type:'text/csv;charset=utf-8'});
+}
+function download(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
+function exportInventory(){
+  const rows=[['품목명','분류','단위','현재수량','최소보유량','거래처','단가','유통기한','상태','메모']];
+  DB.inventory.forEach(i=>{ const dd=dDays(i.expiry);
+    rows.push([i.name,i.category,i.unit,i.qty,i.minQty,i.vendor||'',i.price||'',i.expiry||'',
+      i.qty===0?'품절':(i.qty<=i.minQty?'부족':(dd!==null&&dd<0?'유통기한만료':(dd!==null&&dd<=30?'유통기한임박':'충분'))), i.note]); });
+  download(csvBlob(rows), `재고현황_${todayKey()}.csv`); toast('재고 현황을 내보냈어요');
+}
+function exportAttendance(mk){
+  mk = mk || (($('#attDate') && $('#attDate').value) || todayKey()).slice(0,7);
+  const rows=[['날짜','직원','부서','출근','퇴근','근무시간']];
+  DB.attendance.filter(a=>a.date.startsWith(mk))
+    .sort((a,b)=>a.date.localeCompare(b.date))
+    .forEach(a=>{ const s=staffById(a.staffId);
+      rows.push([a.date, s?s.name:'', s?s.dept:'', a.inAt?fmtTime(a.inAt):'', a.outAt?fmtTime(a.outAt):'',
+        (hoursBetween(a.inAt,a.outAt)||0).toFixed(1)]); });
+  download(csvBlob(rows), `근무기록_${mk}.csv`); toast(`${mk} 근무기록을 내보냈어요`);
+}
+function exportLeaves(){
+  const tl={annual:'연차',monthly:'월차',half:'반차',sick:'병가',etc:'기타'};
+  const st={pending:'대기',approved:'승인',rejected:'반려'};
+  const rows=[['직원','종류','시작일','종료일','일수','상태','사유','신청일']];
+  DB.leaves.slice().sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''))
+    .forEach(l=>{ const s=staffById(l.staffId);
+      rows.push([s?s.name:'', tl[l.type]||l.type, l.startDate, l.endDate, l.days,
+        st[l.status]||l.status, l.reason, l.createdAt?new Date(l.createdAt).toLocaleDateString('ko-KR'):'']); });
+  download(csvBlob(rows), `연월차내역_${todayKey()}.csv`); toast('연월차 내역을 내보냈어요');
+}
+function importData(){ $('#importFile').click(); }
+function doImport(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ const d=JSON.parse(r.result);
+    if(!d.version||!Array.isArray(d.staff)) throw 0;
+    DB=d; saveDB(); closeModal(); $('#hospName').textContent=DB.hospName||'우리병원 관리';
+    go('home'); toast('데이터를 불러왔어요');
+  }catch(e){ toast('올바른 백업 파일이 아니에요'); } };
+  r.readAsText(f);
+}
+function wipeData(){
+  if(!confirm('모든 데이터를 삭제하고 초기 상태로 되돌릴까요? 되돌릴 수 없습니다.')) return;
+  localStorage.removeItem(STORE_KEY); loadDB(); closeModal();
+  $('#hospName').textContent=DB.hospName; go('home'); toast('초기화되었습니다');
+}
+
+/* ========================================================================
+   공통 (모달 / 토스트 / 유틸)
+   ======================================================================== */
+function modal(html){ $('#modalBody').innerHTML=html; $('#modalBg').classList.add('open'); document.body.style.overflow='hidden'; }
+function closeModal(){ $('#modalBg').classList.remove('open'); document.body.style.overflow=''; }
+let toastT;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+/* ========================================================================
+   공유 동기화 (Firebase Firestore) — 설정 없으면 자동으로 '이 기기' 모드
+   ======================================================================== */
+let cloudDoc=null, cloudReady=false, applyingRemote=false, pushTimer=null;
+function cloudConfigured(){
+  const c=window.FIREBASE_CONFIG;
+  return !!(c && c.apiKey && c.projectId && !window.__noFB && typeof firebase!=='undefined');
+}
+function updateSyncBadge(state){
+  const b=$('#syncBadge'); if(!b) return;
+  const map={
+    local:['이 기기','rgba(255,255,255,.2)','#fff'],
+    connecting:['연결 중…','rgba(255,255,255,.2)','#fff'],
+    online:['☁︎ 공유중','#e3f6ee','#0f9d6b'],
+    offline:['⚠ 오프라인','#fdeede','#7a2e0c'],
+  };
+  const [t,bg,fg]=map[state]||map.local; b.textContent=t; b.style.background=bg; b.style.color=fg;
+  b.dataset.state=state;
+}
+function cloudInit(){
+  if(!cloudConfigured()){ updateSyncBadge('local'); return; }
+  try{
+    if(!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+    const fdb=firebase.firestore();
+    cloudDoc=fdb.collection('hospapp').doc(window.WORKSPACE_ID||'clinic');
+    updateSyncBadge('connecting');
+    firebase.auth().signInAnonymously().catch(()=>{});
+    firebase.auth().onAuthStateChanged(u=>{ if(u) cloudSubscribe(); });
+  }catch(e){ updateSyncBadge('offline'); }
+}
+function cloudSubscribe(){
+  if(!cloudDoc) return;
+  cloudDoc.onSnapshot(snap=>{
+    cloudReady=true; updateSyncBadge('online');
+    const data=snap.data();
+    if(data && data.db){
+      let remote; try{ remote=JSON.parse(data.db); }catch(e){ return; }
+      if(!remote || !remote.version) return;
+      applyingRemote=true;
+      DB=remote; ensureSchema();
+      localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+      applyingRemote=false;
+      $('#hospName').textContent = DB.hospName || '우리병원 관리';
+      applyRole();
+      if(!$('#modalBg').classList.contains('open')) rerenderCurrent();
+    }else{
+      cloudPush(true);  // 원격이 비어있으면 이 기기 데이터로 시작
+    }
+  }, err=>{ updateSyncBadge('offline'); });
+}
+function cloudPush(force){
+  if(applyingRemote || !cloudDoc) return;
+  if(!cloudReady && !force) return;
+  clearTimeout(pushTimer);
+  pushTimer=setTimeout(()=>{
+    try{
+      if(DB.invLogs.length>800) DB.invLogs=DB.invLogs.slice(0,800);
+      cloudDoc.set({ db: JSON.stringify(DB), updatedAt: Date.now() });
+    }catch(e){ updateSyncBadge('offline'); }
+  }, 450);
+}
+
+/* ========================================================================
+   권한(역할) / 직원 승인
+   - 관리자: 전부. 직원(담당자): 재고·출퇴근·연월차 신청까지만.
+   - 관리자 PIN으로 전환. 직원은 최초 '사용 요청' → 관리자 승인 후 사용.
+   - (참고) 화면 단에서 숨기는 방식 — 신뢰하는 병원 직원 사이용.
+   ======================================================================== */
+function normPhone(s){ return String(s||'').replace(/\D/g,''); }
+function sessionId(){ return localStorage.getItem('hosp_uid')||''; }
+function setSession(id){ id? localStorage.setItem('hosp_uid',id) : localStorage.removeItem('hosp_uid'); }
+function currentUser(){ const id=sessionId(); return id? DB.staff.find(s=>s.id===id && s.active!==false) : null; }
+function hasAdmin(){ return DB.staff.some(s=>s.role==='관리자' && s.active!==false); }
+function isAdmin(){ const u=currentUser(); return !!u && u.role==='관리자'; }
+let gateState=null;
+function applyRole(){
+  ensureSchema();
+  const u=currentUser();
+  if(!u){ document.body.setAttribute('data-role','staff'); setGate(hasAdmin()?'login':'setup'); return; }
+  const admin = u.role==='관리자';
+  document.body.setAttribute('data-role', admin?'admin':'staff');
+  const rt=$('#roleTag'); if(rt) rt.textContent = (admin?'👑 ':'👤 ')+esc(u.name);
+  $('#adminBanner').classList.remove('show');
+  setGate(null);
+  if(!admin){ if(currentTab==='staff') go('home'); if(currentTab==='leave') leaveTab('new'); }
+  refreshBell();
+}
+function setGate(state){
+  if(state===gateState) return;
+  gateState=state;
+  const g=$('#gate'), b=$('#gateBody');
+  if(!state){ g.classList.remove('show'); document.body.style.overflow=''; return; }
+  b.innerHTML = state==='setup'? gateSetupHtml() : gateLoginHtml();
+  g.classList.add('show'); document.body.style.overflow='hidden';
+}
+function gateLoginHtml(){
+  return `<div class="gate-ic">🏥</div>
+    <div class="gate-h">${esc(DB.hospName||'병원 관리')}</div>
+    <div class="gate-p">전화번호와 개인 PIN으로 로그인하세요.</div>
+    <div class="gate-card">
+      <label class="field"><span>전화번호</span><input id="lgPhone" inputmode="numeric" placeholder="01012345678"></label>
+      <label class="field" style="margin-bottom:6px"><span>개인 PIN</span><input id="lgPin" class="pinbox" inputmode="numeric" maxlength="8" type="password" placeholder="••••"></label>
+      <button class="btn block" onclick="doLogin()">로그인</button>
+    </div>
+    <div class="tiny muted" style="margin-top:16px">번호·PIN을 모르면 관리자에게 문의하세요.</div>`;
+}
+function gateSetupHtml(){
+  return `<div class="gate-ic">👑</div>
+    <div class="gate-h">최초 관리자 등록</div>
+    <div class="gate-p">첫 사용이에요. 관리자(사장님) 계정을 만들어 주세요.</div>
+    <div class="gate-card">
+      <label class="field"><span>이름 *</span><input id="suName" placeholder="홍길동"></label>
+      <label class="field"><span>전화번호 *</span><input id="suPhone" inputmode="numeric" placeholder="01012345678"></label>
+      <label class="field" style="margin-bottom:6px"><span>개인 PIN * (숫자 4자리 이상)</span><input id="suPin" class="pinbox" inputmode="numeric" maxlength="8" type="password" placeholder="••••"></label>
+      <button class="btn block" onclick="doSetupAdmin()">관리자 만들기</button>
+    </div>`;
+}
+function doLogin(){
+  const ph=normPhone($('#lgPhone').value), pin=($('#lgPin').value||'').trim();
+  if(!ph||!pin){ toast('전화번호와 PIN을 입력하세요'); return; }
+  const u=DB.staff.find(s=>normPhone(s.phone)===ph && String(s.pin||'')===pin && s.active!==false);
+  if(!u){ toast('전화번호 또는 PIN이 맞지 않아요'); return; }
+  setSession(u.id); applyRole(); go('home'); toast(`${u.name}님 환영합니다`);
+}
+function doSetupAdmin(){
+  const name=($('#suName').value||'').trim(), ph=normPhone($('#suPhone').value), pin=($('#suPin').value||'').trim();
+  if(!name||!ph){ toast('이름과 전화번호를 입력하세요'); return; }
+  if(!/^\d{4,8}$/.test(pin)){ toast('PIN은 숫자 4~8자리로 정하세요'); return; }
+  if(DB.staff.some(s=>normPhone(s.phone)===ph)){ toast('이미 등록된 번호예요'); return; }
+  const u={id:uid(), name, dept:'', position:'관리자', phone:ph, pin, role:'관리자', active:true, annualTotal:15, joinDate:'', createdAt:now()};
+  DB.staff.push(u); setSession(u.id); saveDB(); applyRole(); go('home'); toast('관리자 계정을 만들었어요');
+}
+function logout(){ if(!confirm('로그아웃할까요?')) return; setSession(''); closeModal(); applyRole(); toast('로그아웃되었습니다'); }
+function changeMyPin(){
+  if(!currentUser()) return;
+  modal(`<h3>🔒 내 PIN 변경</h3>
+    <label class="field"><span>새 PIN (숫자 4자리 이상)</span><input id="mp1" class="pinbox" inputmode="numeric" maxlength="8" type="password" placeholder="••••"></label>
+    <label class="field"><span>한 번 더</span><input id="mp2" class="pinbox" inputmode="numeric" maxlength="8" type="password" placeholder="••••"></label>
+    <button class="btn block" onclick="saveMyPin()">저장</button>`);
+}
+function saveMyPin(){
+  const a=($('#mp1').value||'').trim(), b=($('#mp2').value||'').trim();
+  if(!/^\d{4,8}$/.test(a)){ toast('숫자 4~8자리로 정해주세요'); return; }
+  if(a!==b){ toast('두 번 입력이 달라요'); return; }
+  currentUser().pin=a; saveDB(); closeModal(); toast('PIN을 변경했어요');
+}
+
+/* ---------- 시작 ---------- */
+function boot(){
+  loadDB();
+  $('#hospName').textContent = DB.hospName || '우리병원 관리';
+  $('#todayStr').textContent = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  $('#attDate').value = todayKey();
+  renderHome();
+  applyRole();
+  cloudInit();
+  // PWA: 오프라인/홈화면 설치 지원 (http/https로 열었을 때만)
+  if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+}
+boot();
+</script>
+</body>
+</html>
