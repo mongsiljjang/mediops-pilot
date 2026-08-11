@@ -1,9 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Pilot default: deny all until Authentication + role rules are implemented.
-    match /{document=**} {
-      allow read, write: if false;
+    // 파일럿(단일 병원): 앱을 통해 로그인(Anonymous Auth)된 사용자만 공유 데이터 접근.
+    // 멀티테넌트(hospitalId)·역할·append-only 규칙은 docs/DATA_MODEL.md 계획대로 후속 강화.
+    match /hospapp/{docId} {
+      allow read, write: if request.auth != null;
     }
   }
 }
