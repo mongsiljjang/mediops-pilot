@@ -2105,6 +2105,52 @@ function applyCaseStock(oldT, oldIns, newT, newIns, memo){
   return {out,back,miss,missing:[...missing]};
 }
 
+/* ---- 보험 페일 → 시술중지 안내 -----------------------------------------
+   보험 케이스에 페일이 새로 적히면 공단 시술중지 등록을 물어본다.
+   근거는 docs/INSURANCE_RULES.md 3장. 재시술 급여가 인정되는 길은
+   시술중지 등록 → 재등록 뿐이고, 3단계(보철) 비용을 청구한 뒤에는
+   중지 등록 자체가 막힌다. 되돌릴 수 없는 시점이 있고, 앱은 페일을 아는
+   유일한 곳이라 그 앞에 설 수 있다.
+
+   앱은 판정하지 않는다. 수가도 개수도 연령도 보지 않고 순서가 있다는
+   사실만 알린다. 그래야 규정이 해마다 바뀌어도 이 안내가 틀리지 않는다.
+   기한 조건도 걸지 않는다 — 모르는 기준으로 띄우면 양치기가 된다.
+
+   이미 알린 페일에는 다시 뜨지 않는다. 케이스를 고칠 때마다 뜨면
+   그것도 양치기다. 그래서 '새로 생긴' 페일만 센다. */
+function newFails(oldT, oldIns, newT, newIns){
+  if(newIns!=='보험') return [];              // 일반은 공단 등록이라는 것이 없다
+  // 일반이던 케이스를 보험으로 바꾸면 옛 페일도 처음 알리는 것이 된다
+  const seen = oldIns==='보험'
+    ? new Set((oldT||[]).filter(t=>t.fail).map(t=>String(t.fdi)))
+    : new Set();
+  return (newT||[]).filter(t=>t.fail && !seen.has(String(t.fdi)))
+                   .map(t=>String(t.fdi));
+}
+
+// 문구는 판정이 아니라 물음이다. 대신 결정해 주지 않는다.
+//
+// 저장 요약(토스트)을 안내 안으로 들여온 이유 — 토스트는 화면 아래 84px 에
+// 고정인데 이 안내도 아래에서 올라오는 창이라, 둘이 겹쳐 정작 중요한
+// '3단계 뒤에는 안 된다' 를 덮었다. 브라우저로 열어보고서야 보였다.
+function failNotice(fdis, chart, summary){
+  if(!fdis || !fdis.length) return;
+  const t=$('#toast'); if(t) t.classList.remove('show');
+  const teeth = fdis.map(n=>'#'+esc(n)).join(' ');
+  modal(`<h3>보험 임플란트 페일</h3>
+    <div class="tiny muted" style="margin:-6px 2px 12px">${esc(chart||'')} · 치아 ${teeth}</div>
+    <div class="card" style="box-shadow:none;background:var(--bg);border-left:3px solid var(--danger);margin-bottom:12px;padding:12px 14px">
+      <div style="font-weight:800;margin-bottom:6px">공단에 시술중지 등록하셨나요?</div>
+      <div class="tiny">3단계(보철) 비용을 청구한 뒤에는 <b>중지 등록이 안 됩니다.</b></div>
+    </div>
+    <div class="tiny muted" style="margin:0 2px 14px">
+      재시술 급여는 시술중지 등록 → 재등록을 거쳐야 인정됩니다.
+      앱은 청구를 대신 판단하지 않습니다 — 순서가 있다는 것만 알립니다.
+    </div>
+    ${summary? `<div class="tiny muted" style="margin:-6px 2px 14px;padding-top:10px;border-top:1px solid var(--line)">${esc(summary)}</div>`:''}
+    <button class="btn block" onclick="closeModal()">확인했습니다</button>`);
+}
+
 /* ---- 힐링 회수 ----------------------------------------------------------
    힐링은 2차 수술 때 나가서 2주 뒤 인상채득 때 돌아온다. 돌아오지 않은
    개수가 곧 분실이다 — 직원이 따로 반납을 적을 필요가 없다. */
@@ -2131,23 +2177,35 @@ function openRecall(id){
     <label class="field"><span>회수일</span><input id="rcDate" type="date" value="${todayKey()}"></label>
     <button class="btn block" onclick="saveRecall('${id}')">회수 처리</button>`);
 }
+// 돌아온 힐링을 재고로 되돌린다. 화면과 떼어 둔 이유는 시험을 붙이기 위해서다.
+//
+// 되돌릴 때는 나갈 때 센 칸으로 되돌려야 한다 — caseTally 와 같은 규칙을 쓴다.
+// 전에는 무조건 일반에서 뺐다. 그래서 보험 케이스의 힐링을 회수하면 보험
+// 사용수가 그대로 남고 애먼 일반 사용수가 깎여, 대사가 조용히 틀어졌다.
+function recallStock(c, back){
+  const sizes=new Map();
+  (c.teeth||[]).forEach(t=>{ const k=String(t.heal||'').trim(); if(!k) return;
+    const cat = t.fail? 'uFail' : (c.insur==='보험'?'uIns':'uNor');
+    const key=k+'|'+cat; sizes.set(key,(sizes.get(key)||0)+1); });
+  let left=Math.max(0,+back||0), done=0;
+  sizes.forEach((n,key)=>{
+    if(left<=0) return;
+    const i=key.lastIndexOf('|'), label=key.slice(0,i), cat=key.slice(i+1);
+    const take=Math.min(n,left);
+    const f=findVar(label); if(!f) return;          // 재료 목록에 없으면 건드리지 않는다
+    left-=take; done+=take;
+    const {p,v}=f, before=v.qty; v.qty=before+take;
+    v[cat]=Math.max(0,(+v[cat]||0)-take);
+    implantLog(p.id,v.id,'in',null,take,before,v.qty,`힐링 회수 · ${c.chart}`);
+  });
+  return done;
+}
 function saveRecall(id){
   const c=caseById(id); if(!c) return;
   const out=healOut(c);
   const back=Math.max(0,Math.min(out,parseInt($('#rcBack').value,10)||0));
   c.recallAt=$('#rcDate').value||todayKey(); c.recallBack=back; c.recallLost=out-back;
-  // 재활용이니 돌아온 것만 재고로 되돌린다
-  const sizes=new Map();
-  (c.teeth||[]).forEach(t=>{ const k=String(t.heal||'').trim(); if(k) sizes.set(k,(sizes.get(k)||0)+1); });
-  let left=back;
-  sizes.forEach((n,label)=>{
-    if(left<=0) return;
-    const take=Math.min(n,left); left-=take;
-    const f=findVar(label); if(!f) return;
-    const {p,v}=f, before=v.qty; v.qty=before+take;
-    v.uNor=Math.max(0,(+v.uNor||0)-take);
-    implantLog(p.id,v.id,'in',null,take,before,v.qty,`힐링 회수 · ${c.chart}`);
-  });
+  recallStock(c, back);
   saveDB(); closeModal(); renderLedger();
   toast(c.recallLost? `${back}개 회수 · ${c.recallLost}개 분실` : `${back}개 모두 회수했어요`);
 }
@@ -2178,6 +2236,7 @@ function renderLedger(){
       <div class="row" style="gap:6px">
         <button class="btn sm soft" onclick="openVendors()">🏢 거래처</button>
         <button class="btn sm soft" onclick="openMasters('fixtures')">⚙️ 재료 목록</button>
+        <button class="btn sm soft" onclick="openNotePaste()">📝 수첩</button>
         <button class="btn sm" onclick="openCaseForm()">＋ 케이스</button>
       </div>
     </div>
@@ -2296,6 +2355,257 @@ function lcApplyAll(){
     lcTeeth[n]={...d, fx:fx||d.fx||'', heal:heal||d.heal||'', abT:abT, ab:ab||d.ab||'', graft:gf||d.graft||''}; });
   lcRenderTeeth(); toast(`${lcSel.length}개 치아에 넣었어요 · LOT만 하나씩 적으면 돼요`);
 }
+/* ---- 수첩 줄 읽기 -------------------------------------------------------
+   실장이 수첩에 적는 그대로 받는다. 형식을 새로 강요하면 안 쓰게 된다.
+
+     박소영    보험 #46 오스템 4.0*12
+               일반 #21덴티움 2.8*20      ← 이름이 비면 위 줄과 같은 환자
+
+   순서에 기대지 않고 토큰 생김새로 가른다. 그래야 순서를 바꿔 적어도 읽힌다. */
+let noteRows=[];
+
+// 수첩은 4.0*12, 앱은 4.0×12 로 적는다. 가운데 글자만 바꾸고 숫자는 적은
+// 그대로 둔다 — 숫자로 바꿨다 되돌리면 4.0 이 4 가 되어 규격이 안 맞는다.
+function noteSpec(s){
+  const m=String(s||'').match(/^(\d+(?:\.\d+)?)\s*[x×X*]\s*(\d+(?:\.\d+)?)$/);
+  return m? `${m[1]}×${m[2]}` : '';
+}
+
+// 8/21 · 8-21 · 2026-08-21 만 날짜로 본다. 마침표는 안 받는다 — 4.0 과 헷갈린다.
+function noteDate(tok){
+  let m=tok.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m) return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`;
+  m=tok.match(/^(\d{1,2})[\/-](\d{1,2})$/);
+  if(m) return `${new Date().getFullYear()}-${pad(+m[1])}-${pad(+m[2])}`;
+  return '';
+}
+
+// 재료 목록에서 찾는다. 글자가 다르면 숫자로 견준다 — 4.0×12 와 4×12 는
+// 사람 눈에 같은 규격인데 글자로는 다르다.
+function noteVar(brand, spec){
+  const hit=findVar((brand? brand+' ':'')+spec); if(hit) return hit;
+  const want=parseDL(spec); if(!want) return null;
+  const b=String(brand||'').trim();
+  for(const p of (DB.implants||[])) for(const v of (p.variants||[])){
+    const got=parseDL(v.label);
+    if(got && got.d===want.d && got.l===want.l && (!b || String(p.brand||'').includes(b) || b.includes(String(p.brand||''))))
+      return {p,v};
+  }
+  return null;
+}
+
+function noteParse(text){
+  const rows=[]; let lastName='';
+  String(text||'').split(/\r?\n/).forEach(raw=>{
+    const line=raw.trim(); if(!line) return;
+    // 치식과 규격을 먼저 떼어 놓는다 — '#21덴티움' 처럼 붙여 쓰기 때문에
+    // 공백만으로는 자를 수 없다.
+    //
+    // 치식은 반드시 두 자리로 본다(FDI). 전에는 공백도 이어지는 것으로 봐서
+    // '#46 2차수술' 의 2 까지 치아로 먹었다 — 없는 치아가 하나 생겼다.
+    // 여러 개는 쉼표나 # 로 나눠 적는다: #46,47 · #46#47 · #46 #47
+    const toks=line
+      .replace(/#\s*(\d{2}(?:\s*[,#]\s*\d{2})*)/g, ' #$1 ')
+      .replace(/(\d+(?:\.\d+)?\s*[x×X*]\s*\d+(?:\.\d+)?)/g, ' $1 ')
+      .split(/\s+/).filter(Boolean);
+
+    const r={date:'', name:'', chart:'', insur:'일반', fail:false, teeth:[],
+             brand:'', spec:'', heal:'', stage:0, raw:line};
+    const rest=[]; let specAt=-1;
+    toks.forEach((t,i)=>{
+      if(t[0]==='#'){ t.slice(1).split(/[,#]+/).filter(Boolean).forEach(n=>r.teeth.push(n)); return; }
+      const sp=noteSpec(t); if(sp){ r.spec=sp; specAt=i; return; }
+      const dt=noteDate(t); if(dt){ r.date=dt; return; }
+      if(t==='보험'){ r.insur='보험'; return; }
+      if(t==='일반'||t==='비급여'){ r.insur='일반'; return; }
+      if(t==='페일'||t==='실패'){ r.fail=true; return; }
+      if(/^[12]차(수술)?$/.test(t)){ r.stage=+t[0]; return; }
+      rest.push({t, i});
+    });
+
+    // 남은 낱말 가운데 무엇이 브랜드인가. 짐작보다 대조가 낫다 —
+    // 재료 목록에서 규격과 함께 찾아지는 쪽이 브랜드다.
+    let k=-1;
+    if(r.spec) for(let j=rest.length-1;j>=0;j--) if(noteVar(rest[j].t, r.spec)){ k=j; break; }
+    // 못 찾으면 자리로 본다. 브랜드는 규격 바로 앞에 오고 이름은 줄 앞에 온다.
+    if(k<0 && specAt>=0) rest.forEach((x,j)=>{ if(x.i<specAt && (k<0 || x.i>rest[k].i)) k=j; });
+    if(k>=0){ r.brand=rest[k].t; rest.splice(k,1); }
+
+    // 2차수술 줄에는 픽스처 규격 대신 힐링이 온다. 'Ø4.5 GH3' 처럼 낱말이
+    // 갈라져 있어서, 이어진 낱말을 붙여 보며 재료 목록에 있는 것을 찾는다.
+    if(!r.spec && rest.length) outer:
+      for(let len=Math.min(4,rest.length); len>=1; len--)
+        for(let a=rest.length-len; a>=0; a--){
+          const run=rest.slice(a,a+len);
+          if(run.some((x,j)=>j && x.i!==run[j-1].i+1)) continue;   // 이어진 것만
+          const label=run.map(x=>x.t).join(' ');
+          if(findVar(label)){ r.heal=label; rest.splice(a,len); break outer; }
+        }
+    // 단계를 안 적었으면 무엇이 나갔는지로 본다. 픽스처면 1차, 힐링이면 2차다.
+    if(!r.stage) r.stage = (!r.spec && r.heal) ? 2 : 1;
+
+    r.name = rest.map(x=>x.t).join(' ') || lastName;   // 이름이 비면 위 줄과 같은 환자
+    if(r.name) lastName=r.name;
+    rows.push(r);
+  });
+  return rows;
+}
+
+// 2차수술 줄은 새 케이스가 아니라 이미 있는 케이스에 붙인다.
+// 새로 만들면 픽스처가 두 번 빠진다 — 단계별 수술에서 제일 조심할 자리다.
+// 여러 건이 걸리면 고르지 않는다. 조용히 갖다 붙이면 틀렸을 때 못 찾는다.
+function noteLink(r){
+  if(r.stage!==2 || !r.name || !r.teeth.length) return null;
+  const nm=maskName(r.name);
+  const hit=(DB.implantCases||[]).filter(c=>
+    (c.pname||'')===nm && !c.d2 &&
+    r.teeth.every(f=>(c.teeth||[]).some(t=>String(t.fdi)===String(f))));
+  return hit.length===1 ? hit[0] : (hit.length ? 'many' : null);
+}
+
+// 저장하기 전에 무엇이 안 맞는지 알아야 고칠 수 있다.
+function noteFx(r){ const v=noteVar(r.brand, r.spec); return v? `${v.p.brand} ${v.v.label}` : (r.brand? r.brand+' ' : '')+r.spec; }
+function noteBad(r){
+  if(!r.teeth.length) return '치아번호가 없어요';
+  if(r.stage===2){
+    const link=noteLink(r);
+    if(link==='many') return '붙일 케이스가 여러 건이에요 — 대장에서 직접 고르세요';
+    if(!link) return '1차수술 기록을 못 찾았어요';
+    if(r.heal && !findVar(r.heal)) return '재료 목록에 없는 힐링이에요';
+    return '';                       // 힐링을 안 적었어도 2차 날짜는 남길 수 있다
+  }
+  if(!r.spec) return '규격을 못 읽었어요';
+  if(!noteVar(r.brand, r.spec)) return '재료 목록에 없는 규격이에요';
+  return '';
+}
+
+/* ---- 수첩 옮겨 적기 화면 -------------------------------------------------
+   폼 여섯 칸을 채우는 것보다 한 줄 치는 것이 빠르다. 사진 판독이 붙으면
+   판독 결과가 이 표로 들어오게 되어 있어서, 여기 만든 것은 그대로 쓴다. */
+let noteText='';
+function openNotePaste(){
+  modal(`<h3>📝 수첩 옮겨 적기</h3>
+    <div class="tiny muted" style="margin:-4px 2px 10px">수첩에 적은 대로 한 줄에 하나씩 넣으세요.
+      순서는 바뀌어도 되고, <b>이름을 비우면 윗줄과 같은 환자</b>로 봅니다.</div>
+    <textarea id="noteText" rows="7" spellcheck="false"
+      style="width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;font-size:15px;line-height:1.7;resize:vertical"
+      placeholder="박소영  보험 #46 오스템 4.0*12&#10;        일반 #21덴티움 2.8*20">${esc(noteText)}</textarea>
+    <div class="tiny muted" style="margin:8px 2px 12px">날짜를 안 적으면 오늘로 잡고, 표에서 고칠 수 있어요.</div>
+    <button class="btn block" onclick="noteRead()">읽기</button>`);
+}
+function noteRead(){
+  noteText=$('#noteText').value;
+  noteRows=noteParse(noteText);
+  if(!noteRows.length){ toast('읽을 줄이 없어요'); return; }
+  noteReview();
+}
+function noteSet(i,k,v){
+  if(k==='teeth') noteRows[i].teeth=String(v).split(/[,#\s]+/).filter(Boolean);
+  else noteRows[i][k]=v;
+  noteReview();
+}
+// 2차수술 줄이 어느 케이스에 붙는지 눈으로 보여준다. 조용히 갖다 붙이면
+// 틀렸을 때 찾을 방법이 없다.
+function noteLinkText(r){
+  const c=noteLink(r);
+  if(!c || c==='many') return '';
+  const who=[c.chart, c.pname].filter(Boolean).join(' ');
+  return `${esc(who)} · 1차 ${esc(c.d1||'—')} 케이스에 붙임`
+       + (r.heal? ` · 힐링 ${esc(r.heal)}` : ' · 힐링은 비움');
+}
+
+// 읽은 것을 그대로 저장하지 않는다. 사람이 한 번 보고 넘겨야 잘못 읽은 줄이
+// 재고를 조용히 틀어놓지 않는다.
+function noteReview(){
+  const badN=noteRows.filter(r=>noteBad(r)).length;
+  const rows=noteRows.map((r,i)=>{ const bad=noteBad(r); return `
+    <div class="card" style="box-shadow:none;background:var(--bg);padding:10px 11px;margin-bottom:7px">
+      <div class="row wrap" style="gap:5px;margin-bottom:5px">
+        <input type="date" value="${esc(r.date||todayKey())}" onchange="noteSet(${i},'date',this.value)" style="flex:0 0 142px">
+        <input value="${esc(r.name)}" placeholder="환자" onchange="noteSet(${i},'name',this.value)" style="flex:1;min-width:90px">
+        <select onchange="noteSet(${i},'insur',this.value)" style="flex:0 0 78px">
+          <option ${r.insur==='보험'?'selected':''}>보험</option>
+          <option ${r.insur!=='보험'?'selected':''}>일반</option></select>
+        <select onchange="noteSet(${i},'stage',+this.value)" style="flex:0 0 86px">
+          <option value="1" ${r.stage!==2?'selected':''}>1차수술</option>
+          <option value="2" ${r.stage===2?'selected':''}>2차수술</option></select>
+      </div>
+      <div class="row wrap" style="gap:5px">
+        <input value="${esc(r.chart)}" placeholder="차트번호 (없어도 됨)" onchange="noteSet(${i},'chart',this.value)" style="flex:1;min-width:110px">
+        <input value="${esc(r.teeth.join(','))}" placeholder="치식" onchange="noteSet(${i},'teeth',this.value)" style="flex:0 0 88px">
+        ${r.stage===2
+          ? `<input value="${esc(r.heal)}" list="hlList" placeholder="힐링 (나중에 골라도 됨)" onchange="noteSet(${i},'heal',this.value)" style="flex:0 0 196px">`
+          : `<input value="${esc(r.brand)}" placeholder="브랜드" onchange="noteSet(${i},'brand',this.value)" style="flex:0 0 96px">
+             <input value="${esc(r.spec)}" placeholder="규격" onchange="noteSet(${i},'spec',this.value)" style="flex:0 0 92px">`}
+      </div>
+      <div class="tiny" style="margin-top:6px;color:${bad?'var(--danger)':'var(--muted)'}">
+        ${bad? '⚠ '+bad : (r.stage===2? '✓ '+noteLinkText(r) : '✓ '+esc(noteFx(r)))}${r.fail?' · 페일':''}
+        <span class="muted" style="margin-left:6px">${esc(r.raw)}</span></div>
+    </div>`; }).join('');
+  modal(`<h3>읽은 결과 ${noteRows.length}줄</h3>
+    <datalist id="hlList">${lcOpts('힐링').map(x=>`<option value="${esc(x)}">`).join('')}</datalist>
+    <div class="tiny muted" style="margin:-4px 2px 10px">${badN
+      ? `<b style="color:var(--danger)">${badN}줄은 재고에서 못 찾았어요.</b> 고치거나, 그대로 두면 대장에만 남고 재고는 안 깎입니다.`
+      : '모두 재고에서 찾았어요. 저장하면 그만큼 빠집니다.'}</div>
+    ${rows}
+    <div class="row" style="margin-top:10px">
+      <button class="btn block" onclick="noteSaveAll()">대장에 적고 재고 반영</button>
+    </div>`, openNotePaste);
+}
+// 보험과 일반은 케이스를 나눈다. 심평원 실사에서 섞여 있으면 소명이 안 된다.
+function noteSaveAll(){
+  if(!Array.isArray(DB.implantCases)) DB.implantCases=[];
+  let made=0, upd=0, out=0, miss=0;
+  const nf=[];                     // 보험 페일 — 여러 건이어도 안내는 한 번만 띄운다
+
+  // 1차부터 적는다. 같은 붙여넣기 안에 1차와 2차가 함께 있으면
+  // 2차가 붙을 케이스가 먼저 있어야 한다.
+  const g=new Map();
+  noteRows.filter(r=>r.stage!==2).forEach(r=>{
+    if(!r.teeth.length || !r.spec) return;
+    const date=r.date||todayKey();
+    const key=[r.name, r.insur, date, r.chart].join('|');
+    if(!g.has(key)) g.set(key, {name:r.name, insur:r.insur, date, chart:r.chart, teeth:[]});
+    const fx=noteFx(r);
+    r.teeth.forEach(fdi=>g.get(key).teeth.push({fdi, fx, fail:!!r.fail}));
+  });
+  g.forEach(v=>{
+    const data={ chart:v.chart, pname:maskName(v.name), birth:'', insur:v.insur,
+      d1:v.date, d2:'', memo:'수첩', teeth:v.teeth, updatedAt:now() };
+    newFails([], '', data.teeth, data.insur).forEach(n=>nf.push(n));
+    const rr=applyCaseStock([], '', data.teeth, data.insur, `수첩 ${v.chart||v.name||''}`.trim());
+    DB.implantCases.push(Object.assign({id:uid(), createdAt:now()}, data));
+    out+=rr.out; miss+=rr.miss; made++;
+  });
+
+  // 2차수술 줄은 이미 있는 케이스에 얹는다. 새 케이스를 만들면 픽스처가
+  // 또 빠진다. applyCaseStock 이 차이만 보므로 힐링만 빠져나간다.
+  noteRows.filter(r=>r.stage===2).forEach(r=>{
+    const c=noteLink(r);
+    if(!c || c==='many') return;
+    const before=(c.teeth||[]).map(t=>Object.assign({}, t));
+    const hit=t=>r.teeth.some(f=>String(f)===String(t.fdi));
+    if(r.heal) (c.teeth||[]).forEach(t=>{ if(hit(t)) t.heal=r.heal; });
+    // 페일은 2차 수술 때 잇몸을 열고서야 드러난다 — 골유착 실패가 그렇다.
+    // 전에는 줄에서 읽어 놓고 케이스에 적지 않아, 그 페일이 어디에도 안 남았다.
+    if(r.fail) (c.teeth||[]).forEach(t=>{ if(hit(t)) t.fail=true; });
+    c.d2 = r.date||todayKey(); c.updatedAt=now();
+    newFails(before, c.insur, c.teeth, c.insur).forEach(n=>nf.push(n));
+    const rr=applyCaseStock(before, c.insur, c.teeth, c.insur, `수첩 2차 ${c.chart||''}`.trim());
+    out+=rr.out; miss+=rr.miss; upd++;
+  });
+
+  if(!made && !upd){ toast('적을 줄이 없어요 — 치아번호와 규격을 확인해 주세요'); return; }
+  noteText=''; saveDB(); closeModal(); renderLedger();
+  const bits=[];
+  if(made) bits.push(`${made}건 새로 적음`);
+  if(upd)  bits.push(`${upd}건 2차수술 반영`);
+  bits.push(`재고 ${out}개 차감`);
+  if(miss) bits.push(`못 뺀 규격 ${miss}개`);
+  toast(bits.join(' · '));
+  failNotice(nf, '수첩', bits.join(' · '));
+}
+
 function openCaseForm(id){
   const c=id?caseById(id):null;
   lcEditId=id||''; lcSel=[]; lcTeeth={};
@@ -2362,6 +2672,8 @@ function saveCase(id){
     memo:$('#lcMemo').value.trim(),
     teeth:lcSel.map(n=>({fdi:n, ...(lcTeeth[n]||{})})), updatedAt:now() };
   const old=id?caseById(id):null;
+  // old 는 살아 있는 참조라 Object.assign 뒤에는 옛 값이 아니다. 먼저 본다.
+  const nf=newFails(old?old.teeth:[], old?old.insur:'', data.teeth, data.insur);
   const r=applyCaseStock(old?old.teeth:[], old?old.insur:'', data.teeth, data.insur, `대장 ${chart}`);
   if(id){ Object.assign(caseById(id), data); }
   else { DB.implantCases.push({id:uid(), createdAt:now(), ...data}); }
@@ -2370,7 +2682,8 @@ function saveCase(id){
   if(r.out) bits.push(`재고 ${r.out}개 차감`);
   if(r.back) bits.push(`${r.back}개 되돌림`);
   toast(bits.join(' · '));
-  if(r.miss) setTimeout(()=>toast(`⚠️ 재고에 없는 규격 ${r.miss}개는 못 뺐어요 — 재료 목록에서 '재고에 등록'을 눌러주세요`),1600);
+  if(r.miss && !nf.length) setTimeout(()=>toast(`⚠️ 재고에 없는 규격 ${r.miss}개는 못 뺐어요 — 재료 목록에서 '재고에 등록'을 눌러주세요`),1600);
+  failNotice(nf, chart, bits.join(' · ') + (r.miss?` · 재고에 없는 규격 ${r.miss}개는 못 뺐어요`:''));
 }
 function delCase(id){
   if(!isOwner()){ toast('삭제는 최고관리자만 할 수 있어요'); return; }
@@ -5065,6 +5378,8 @@ function refRoster(){ return wsRef().collection('roster').doc('main'); }
 function refSecrets(){ return wsRef().collection('secrets').doc('main'); }
 function refPeople(sid){ return wsRef().collection('people').doc(sid); }
 function refMeta(){ return wsRef().collection('meta').doc('main'); }
+// 계량기 — 개수만 적는다. 요금 구간을 실측으로 정하려고 둔 자리다.
+function refUsage(){ return wsRef().collection('usage').doc('main'); }
 function refOwnerKey(){ return wsRef().collection('ownerkey').doc('main'); }
 function refUnlock(){ return wsRef().collection('unlock').doc(myUid); }
 
@@ -5493,7 +5808,10 @@ function writeAll(){
   if(booting || got.shared){ mine.shared=t; job('shared', refShared().set(Object.assign(pickShared(), stamp))); }
   if(booting || (admin && got.roster)){  mine.roster=t;  job('roster',  refRoster().set(Object.assign(pickRoster(), stamp)));
     // 문 앞 표지판 — 사람이 있는지만 적는다. 이름도 번호도 담지 않는다.
-    jobOptional('meta', refMeta().set({ hasClinic: (DB.staff||[]).length>0, updatedAt:t })); }
+    jobOptional('meta', refMeta().set({ hasClinic: (DB.staff||[]).length>0, updatedAt:t }));
+    // 계량기 — 몇 명인지만. merge 로 적어야 나중에 붙을 칸을 지우지 않는다.
+    jobOptional('usage', refUsage().set({
+      staffCount: (DB.staff||[]).filter(s=>s.active!==false).length, updatedAt:t }, {merge:true})); }
   if(booting || (admin && got.secrets)){ mine.secrets=t; job('secrets', refSecrets().set(Object.assign(pickSecrets(), stamp))); }
 
   if(admin){
